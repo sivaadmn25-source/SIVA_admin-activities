@@ -274,12 +274,13 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     }
   
-    .modal-content input {
+    .modal-content input, .modal-content select { /* Added select for the new modal */
       width: 80%;
       padding: 10px;
       margin-bottom: 15px;
       border-radius: 5px;
       border: 1px solid #ccc;
+      box-sizing: border-box; /* Ensures padding is included in the width */
     }
   
     .modal-buttons {
@@ -441,6 +442,33 @@
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
+
+    /* ⭐ NEW STYLES for Blocked Flats Display Modal (Added from old file) ⭐ */
+    #blockedFlatsList {
+        text-align: left;
+        max-height: 250px;
+        overflow-y: auto;
+        border: 1px solid #eee;
+        padding: 10px;
+        margin-top: 10px;
+        border-radius: 5px;
+        background: #f9f9f9;
+        font-size: 0.9em;
+    }
+    #blockedFlatsList ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    #blockedFlatsList li {
+        padding: 5px 0;
+        border-bottom: 1px dotted #ddd;
+        font-weight: 500;
+        color: #e74c3c;
+    }
+    #blockedFlatsList li:last-child {
+        border-bottom: none;
+    }
   </style>  
 </head>
 <body>
@@ -505,7 +533,13 @@
       <div class="grid-item">
         <button type="button" class="btn btn-primary" id="setMaxSelectionBtn">Set Max Selection</button>
       </div>
-
+      
+      <div class="grid-item">
+        <button type="button" class="btn btn-danger" id="toggleBlockBtn">Block/Unblock Voters</button>
+      </div>
+      <div class="grid-item">
+        <button type="button" class="btn btn-primary" id="viewBlockedFlatsBtn">View Blocked Voters</button>
+      </div>
       <div class="grid-item">
         <button id="resetVotesButton" class="btn btn-danger">Reset Votes</button>
       </div>
@@ -573,12 +607,69 @@
       </div>
     </div>
   </div>
+  
+  <div id="toggleBlockModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3 id="toggleBlockTitle">Block Voting for Household</h3>
+      <div class="modal-message" id="toggleBlockMessage"></div>
+      
+      <select id="blockActionSelect" style="width: 80%; margin-bottom: 15px;">
+        <option value="1">Block (Disallow Voting)</option>
+        <option value="0">Unblock (Allow Voting)</option>
+      </select>
+      
+      <input type="text" id="blockTowerInput" placeholder="Tower/Lane (A, B, N/A)" style="text-transform:uppercase;" />
+      <input type="text" id="blockFlatInput" placeholder="Flat/House Number (e.g., 101, 1-10)" required />
+      
+      <div class="modal-buttons">
+        <button type="button" class="btn btn-danger" id="confirmBlockButton">Confirm Action</button>
+        <button type="button" class="btn btn-secondary" id="cancelBlockButton">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="viewBlockedFlatsModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Blocked Households Audit</h3>
+      <div id="blockedFlatsList">Loading...</div>
+      <div class="modal-buttons">
+        <button type="button" class="btn btn-secondary" id="closeBlockedFlatsButton">Close</button>
+      </div>
+    </div>
+  </div>
+  <div id="votingTimeModal" class="modal" style="display:none; position:fixed; z-index:1000; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6);">
+    <div style="background:white; padding:20px; max-width:400px; margin:10% auto; border-radius:10px; position:relative;">
+        <h3>Set Voting Timing</h3>
+        
+        <label for="startTime">Start Time:</label><br>
+        <input type="datetime-local" id="startTime" name="startTime" required><br><br>
+        
+        <label for="endTime">End Time:</label><br>
+        <input type="datetime-local" id="endTime" name="endTime" required><br><br>
+        
+        <p style="font-size: 0.9em; color: #888; margin-top: 10px;">
+            * After selecting the time in the calendar, click **Save** to confirm your schedule.
+        </p>
+        
+        <div style="margin-top: 20px;">
+            <button id="saveVotingTimeBtn" class="btn btn-primary">Save Voting Time</button>
+            <button onclick="closeVotingModal()" class="btn" style="margin-left: 10px;">Close</button>
+        </div>
+    </div>
+  </div>
+
   <script>
   function closeVotingModal() {
     document.getElementById("votingTimeModal").style.display = "none";
   }
 
   document.addEventListener('DOMContentLoaded', function () {
+    // --- Global Elements ---
+    const societyType = '{{ session.get("housing_type") }}';
+    const isApartment = societyType.startsWith('Apartment');
+    const isVillasLanes = societyType.includes('Lanes');
+
+    // --- Core Admin Elements (Retained) ---
     const resetVotesButton = document.getElementById('resetVotesButton');
     const passwordPromptModal = document.getElementById('passwordPromptModal');
     const superAdminPasswordInput = document.getElementById('superAdminPasswordInput');
@@ -596,8 +687,38 @@
     const fileNameDisplay = document.getElementById('fileNameDisplay');
     const setVotingTimeBtn = document.getElementById('setVotingTimeBtn');
     const saveVotingTimeBtn = document.getElementById('saveVotingTimeBtn');
+    
+    // --- Block/Unblock Elements (Added from old file) ---
+    const toggleBlockBtn = document.getElementById('toggleBlockBtn');
+    const toggleBlockModal = document.getElementById('toggleBlockModal');
+    const confirmBlockButton = document.getElementById('confirmBlockButton');
+    const cancelBlockButton = document.getElementById('cancelBlockButton');
+    const blockTowerInput = document.getElementById('blockTowerInput');
+    const blockFlatInput = document.getElementById('blockFlatInput');
+    const toggleBlockTitle = document.getElementById('toggleBlockTitle');
+    const blockActionSelect = document.getElementById('blockActionSelect');
+    const toggleBlockMessage = document.getElementById('toggleBlockMessage');
+    const viewBlockedFlatsBtn = document.getElementById('viewBlockedFlatsBtn');
+    const viewBlockedFlatsModal = document.getElementById('viewBlockedFlatsModal');
+    const blockedFlatsList = document.getElementById('blockedFlatsList');
+    const closeBlockedFlatsButton = document.getElementById('closeBlockedFlatsButton');
 
 
+    // --- Utility Function (Retained) ---
+    function showCustomError(message) {
+        const msgBox = document.getElementById('ajax-error-message');
+        if (!msgBox) return alert(message);
+
+        msgBox.textContent = message;
+        msgBox.classList.remove('hidden');
+        msgBox.classList.add('error'); 
+
+        setTimeout(() => {
+            msgBox.classList.add('hidden');
+        }, 5000); 
+    }
+
+    // --- Reset Votes Logic (Retained) ---
     resetVotesButton.addEventListener('click', function () {
       passwordPromptModal.classList.add('active');
       superAdminPasswordInput.value = '';
@@ -650,7 +771,7 @@
       }
     });
 
-
+    // --- Set Max Selection Logic (Retained) ---
     setMaxSelectionBtn.addEventListener('click', function() {
       setMaxSelectionModal.classList.add('active');
       maxCandidatesInput.value = '';
@@ -691,6 +812,7 @@
       }
     });
 
+    // --- File Upload Listener (Retained) ---
     secretCodesInput.addEventListener('change', function() {
       if (this.files.length > 0) {
         fileNameDisplay.textContent = this.files[0].name;
@@ -699,19 +821,7 @@
       }
     });
 
-    function showCustomError(message) {
-        const msgBox = document.getElementById('ajax-error-message');
-        if (!msgBox) return alert(message);
-
-        msgBox.textContent = message;
-        msgBox.classList.remove('hidden');
-        msgBox.classList.add('error'); 
-
-        setTimeout(() => {
-            msgBox.classList.add('hidden');
-        }, 5000); 
-    }
-
+    // --- Set Voting Times Logic (Retained) ---
     saveVotingTimeBtn.addEventListener("click", async function () {
         const startInput = document.getElementById("startTime").value;
         const endInput = document.getElementById("endTime").value;
@@ -746,58 +856,128 @@
             showCustomError("A server error occurred while saving voting schedule. Please try again.");
         }
     });
+
+    // --- Blocking Feature Handlers (Added from old file) ---
+
+    // 1. Open Toggle Block Modal
+    toggleBlockBtn.addEventListener('click', function() {
+        // Set placeholder based on society type
+        if (!isApartment && !isVillasLanes) {
+            blockTowerInput.style.display = 'none';
+        } else {
+            blockTowerInput.style.display = 'block';
+            blockTowerInput.placeholder = isApartment ? 'Tower (e.g., A)' : 'Lane (e.g., Main St)';
+            blockFlatInput.placeholder = isApartment ? 'Flat Number (e.g., 101)' : 'House Number (e.g., 15)';
+        }
+        
+        blockFlatInput.value = '';
+        blockTowerInput.value = '';
+        toggleBlockMessage.textContent = '';
+        toggleBlockModal.classList.add('active');
+        blockFlatInput.focus();
+    });
+
+    cancelBlockButton.addEventListener('click', function() {
+        toggleBlockModal.classList.remove('active');
+    });
+
+    // 2. Process Block/Unblock Action (AJAX)
+    confirmBlockButton.addEventListener('click', async function() {
+        const tower = isApartment || isVillasLanes ? blockTowerInput.value.trim().toUpperCase() : 'N/A';
+        const flat = blockFlatInput.value.trim();
+        const block_status = blockActionSelect.value;
+        const block_text = block_status === '1' ? 'Blocking' : 'Unblocking';
+
+        if ((isApartment || isVillasLanes) && !tower) {
+            toggleBlockMessage.textContent = 'Tower/Lane is required.';
+            return;
+        }
+        if (!flat) {
+            toggleBlockMessage.textContent = 'Flat/House Number is required.';
+            return;
+        }
+
+        try {
+            const response = await fetch('/toggle_block', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    tower: tower,
+                    flat: flat,
+                    block_status: block_status
+                }),
+            });
+
+            const data = await response.json();
+            toggleBlockModal.classList.remove('active');
+            
+            if (data.success) {
+                alert(`Success: ${flat} was successfully ${block_text.toLowerCase()}.`);
+            } else {
+                alert(`Error: Failed to perform action. ${data.message}`);
+            }
+        } catch (error) {
+            showCustomError(`${block_text} failed: Network error.`);
+            toggleBlockModal.classList.remove('active');
+        }
+    });
+
+
+    // 3. View Blocked Flats (AJAX)
+    viewBlockedFlatsBtn.addEventListener('click', async function() {
+        blockedFlatsList.innerHTML = 'Loading blocked households...';
+        viewBlockedFlatsModal.classList.add('active');
+
+        try {
+            const response = await fetch('/get_blocked_flats');
+            const data = await response.json();
+
+            if (data.success && data.blocked_households && data.blocked_households.length > 0) {
+                let html = '<ul>';
+                data.blocked_households.forEach(item => {
+                    html += `<li>${item}</li>`;
+                });
+                html += '</ul>';
+                blockedFlatsList.innerHTML = html;
+            } else {
+                blockedFlatsList.innerHTML = '<p style="color: green; font-weight: bold;">✅ No households are currently blocked.</p>';
+            }
+        } catch (error) {
+            blockedFlatsList.innerHTML = '<p style="color: red;">Failed to load blocked list due to server error.</p>';
+        }
+    });
+
+    closeBlockedFlatsButton.addEventListener('click', function() {
+        viewBlockedFlatsModal.classList.remove('active');
+    });
   });
-  </script>
-
-<div id="votingTimeModal" class="modal" style="display:none; position:fixed; z-index:1000; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6);">
-    <div style="background:white; padding:20px; max-width:400px; margin:10% auto; border-radius:10px; position:relative;">
-        <h3>Set Voting Timing</h3>
-        
-        <label for="startTime">Start Time:</label><br>
-        <input type="datetime-local" id="startTime" name="startTime" required><br><br>
-        
-        <label for="endTime">End Time:</label><br>
-        <input type="datetime-local" id="endTime" name="endTime" required><br><br>
-        
-        <p style="font-size: 0.9em; color: #888; margin-top: 10px;">
-            * After selecting the time in the calendar, click **Save** to confirm your schedule.
-        </p>
-        
-        <div style="margin-top: 20px;">
-            <button id="saveVotingTimeBtn" class="btn btn-primary">Save Voting Time</button>
-            <button onclick="closeVotingModal()" class="btn" style="margin-left: 10px;">Close</button>
-        </div>
-    </div>
-</div>
-  <script>
-    document.getElementById("setVotingTimeBtn").addEventListener("click", function () {
+  
+  // Existing Global Function (Retained)
+  document.getElementById("setVotingTimeBtn").addEventListener("click", function () {
       document.getElementById("votingTimeModal").style.display = "block";
-    });
-  
-    function closeVotingModal() {
-      document.getElementById("votingTimeModal").style.display = "none";
-    }
-  
-    const blinkingAlerts = document.querySelectorAll('.flash-alert.blink');
-    blinkingAlerts.forEach(alert => {
-        setTimeout(() => {
-            alert.classList.remove('blink');
-            alert.style.animation = 'none';
-        }, 5000);
+  });
 
-        setTimeout(() => {
-            alert.remove();
-        }, 6000);
-    });
+  const blinkingAlerts = document.querySelectorAll('.flash-alert.blink');
+  blinkingAlerts.forEach(alert => {
+      setTimeout(() => {
+          alert.classList.remove('blink');
+          alert.style.animation = 'none';
+      }, 5000);
+
+      setTimeout(() => {
+          alert.remove();
+      }, 6000);
+  });
     
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', e => {
-      if (
-        e.key === "F12" ||
-        (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
-        (e.ctrlKey && e.key.toUpperCase() === "U")
-      ) e.preventDefault();
-    });
+  // Anti-debugging scripts (Retained)
+  document.addEventListener('contextmenu', e => e.preventDefault());
+  document.addEventListener('keydown', e => {
+    if (
+      e.key === "F12" ||
+      (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
+      (e.ctrlKey && e.key.toUpperCase() === "U")
+    ) e.preventDefault();
+  });
   </script>
   
  
