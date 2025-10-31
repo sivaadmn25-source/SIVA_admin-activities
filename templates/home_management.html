@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="{{ session.get('lang', 'en') }}">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Home Management System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: #f5f7fa; 
+            margin: 0; 
+            padding: 20px 20px 20px 20px; 
+            padding-top: 90px;
+            color: #2c3e50; 
+            /* Standardized Body Max Width */
+            max-width: 600px; 
+            margin-left: auto; 
+            margin-right: auto; 
+            user-select: none; 
+        }
+        h1 { font-weight: 700; font-size: 2.4rem; margin-bottom: 1rem; color: #34495e; text-align: center; }
+        h2 { font-weight: 600; font-size: 1.6rem; margin-bottom: 0.6rem; color: #34495e; border-bottom: 2px solid #3498db; padding-bottom: 6px; }
+        label { display: block; font-weight: 600; margin-bottom: 6px; margin-top: 10px; color: #34495e; }
+        input[type="text"], input[type="number"], select { width: 100%; padding: 10px 12px; border: 1.8px solid #bdc3c7; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s ease; }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus { border-color: #2980b9; outline: none; box-shadow: 0 0 5px #2980b9aa; }
+        button { 
+            cursor: pointer; font-weight: 700; font-size: 1rem; padding: 12px 24px; 
+            margin-top: 15px; border: none; border-radius: 30px; background: #2980b9; color: white; box-shadow: 0 4px 10px #2980b9aa; transition: all 0.3s ease; 
+        }
+        button:hover { background-color: #1c5980; box-shadow: 0 6px 14px #1c5980cc; }
+        button:active { transform: scale(0.97); }
+        .section { background: white; padding: 20px 25px; margin-top: 15px; border-radius: 12px; box-shadow: 0 8px 15px rgb(0 0 0 / 0.07); }
+        .remove-btn { background-color: #e74c3c; border: none; border-radius: 50%; width: 28px; height: 28px; color: white; font-weight: 700; font-size: 16px; line-height: 1; display: flex; justify-content: center; align-items: center; cursor: pointer; position: absolute; top: 10px; right: 10px; }
+        .remove-btn:hover { background-color: #c0392b; }
+        .add-btn-container { margin-top: 10px; text-align: right; }
+        
+        /* Ribbon Styles */
+        .ribbon { 
+            width: 100%; 
+            max-width: 600px; 
+            height: 60px; /* Standardized Height */
+            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%); 
+            position: fixed; 
+            top: 20px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            z-index: 1000; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            border-radius: 10px; 
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15); 
+        }
+        .ribbon h1 { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 10px; 
+            font-size: 1.8rem; /* Standardized Text Size */
+            font-weight: 800; 
+            color: #0000FF; 
+            margin: 0; 
+            line-height: 1; 
+            text-decoration: none; 
+        }
+        .chakra { width: 45px; height: 45px; display: inline-block; vertical-align: middle; animation: spinChakra 10s linear infinite; transform-origin: 50% 50%; }
+        @keyframes spinChakra { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        /* Rainbow SIVA text */
+        .ribbon .siva-text {
+            font-weight: 500;
+            font-size: 2.2rem;
+            background: linear-gradient(270deg, gold, orange, yellow, green, blue, indigo, violet, gold);
+            background-size: 400% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+            margin-left: 6px;
+            white-space: nowrap;
+            animation: rainbow 6s ease infinite;
+        }
+        @keyframes rainbow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .item-card { background: white; border: 1px solid #3498db; border-radius: 8px; padding: 15px 20px; box-shadow: 0 0 10px #2980b9aa; position: relative; display: flex; flex-direction: column; }
+        #towersContainer, #lanesMatrix { display: flex; gap: 15px; overflow-x: auto; padding: 15px; background: #f5f7fa; border-radius: 8px; min-height: 200px; align-items: flex-start; }
+        .back-button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background-color: #2ecc71; color: white; border: none; border-radius: 30px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); text-decoration: none; }
+        .back-button:hover { background-color: #27ae60; }
+        .back-button svg { width: 18px; height: 18px; fill: white; transform: rotate(180deg); }
+        #homeManagementForm > div:first-child { margin-bottom: 10px; }
+        #centered-dev-footer { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.9rem; color: #6b7280; z-index: 50; }
+        #centered-dev-footer a { color: #0000FF; text-decoration: underline; }
+        
+        /* Template Model Table Styles */
+        .template-model-table {
+            width: 100%;
+            margin-top: 15px;
+            border-collapse: collapse;
+            font-size: 0.9em;
+            table-layout: fixed;
+        }
+        .template-model-table th, .template-model-table td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: center;
+        }
+        .template-model-table th {
+            background-color: #f0f0f0;
+            font-weight: 700;
+            color: #34495e;
+        }
+        .template-model-table td {
+            background-color: #ffffff;
+            font-family: monospace;
+        }
+        
+        /* ⭐ NEW FIX: Disabled Button Appearance ⭐ */
+        #uploadSubmitBtn:disabled {
+            background-color: #ccc !important; 
+            cursor: not-allowed; 
+            box-shadow: none; 
+            /* Ensure text is still visible */
+            color: #555 !important; 
+        }
+        #uploadSubmitBtn:hover:disabled {
+            background-color: #ccc !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ribbon" aria-hidden="true">
+        <h1>
+            <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="48" stroke="#0000FF" stroke-width="4" fill="none"/>
+                <g stroke="#0000FF" stroke-width="2">
+                    <g transform="translate(50,50)">
+                        <circle r="3" fill="#0000FF"/>
+                        <defs>
+                            <line id="spoke" y1="3" y2="-47"/>
+                        </defs>
+                        {% for i in range(0,360,15) %}
+                        <use href="#spoke" transform="rotate({{ i }})"/>
+                        {% endfor %}
+                    </g>
+                </g>
+            </svg>
+            Home Management System <span class="siva-text">SIVA</span>
+        </h1>
+    </div>
+
+    <a href="{{ url_for('admin_panel') }}" class="back-button">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+        </svg>
+        Back to Admin Panel
+    </a>
+
+    <form id="homeManagementForm" method="POST" action="{{ url_for('home_management') }}" enctype="multipart/form-data">
+        <div>
+            <label for="societyName">Society Name:</label>
+            <input type="text" id="societyName" name="society_name" 
+                value="{{ session.get('society_name') }}"
+                readonly 
+                style="text-transform: uppercase;">
+        </div>
+
+        <label for="housingTypeDisplay">Community Type:</label>
+        <input type="text" id="housingTypeDisplay"
+            value="{{ session.get('housing_type') | capitalize }}"
+            readonly
+            style="text-transform: uppercase;">
+        <input type="hidden" id="housingType" name="housing_type" 
+            value="{{ session.get('housing_type') }}">
+
+        <div id="uploadSection" class="section">
+            <h2>Upload Configuration from Excel</h2>
+            <p style="font-size: 0.9em; color: #2804f1; text-align: left;">
+                You can upload a sheet or fill online to define all households. Below is the **required structure** (Template 1st Line) and a sample of the data needed for your community type. 
+                **Note:** This action will **overwrite** the current configuration.
+            </p>
+
+            <div id="templateModel">
+                {% if housing_type.startswith("Apartment") %}
+                    <table class="template-model-table">
+                        <thead>
+                            <tr><th>Tower</th><th>Start_Flat</th><th>End_Flat</th><th>Start_Series</th><th>End_Series</th><th>Missing_Series</th><th>Additional_Flats</th><th>Remove_Flats</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>A</td><td>1</td><td>4</td><td>1</td><td>5</td><td>3,5</td><td>105,202</td><td>402,504</td></tr>
+                        </tbody>
+                    </table>
+                {% elif housing_type == "Villas-Lanes" %}
+                    <table class="template-model-table">
+                        <thead>
+                            <tr><th>Lane</th><th>Base_Houses</th><th>Additional_Houses</th><th>Remove_Houses</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>MAIN_ST</td><td>1-10,15</td><td>25,27</td><td>4</td></tr>
+                        </tbody>
+                    </table>
+                {% elif housing_type == "Villas-No Lanes" or housing_type.startswith("Civil") %}
+                    <table class="template-model-table">
+                        <thead>
+                            <tr><th>House_Numbers_Raw</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>1-10,15,20,A-101</td></tr>
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button type="button" id="downloadTemplateBtn" style="background-color: #2ecc71; flex-grow: 1;">Download Template</button>
+                <button type="submit" name="action" value="upload" id="uploadSubmitBtn" style="flex-grow: 1;" disabled>Upload & Save Config</button>
+            </div>
+
+            <input type="file" name="config_file" id="configFileInput" accept=".xlsx, .xls, .csv" style="padding: 12px;" />
+        </div>
+        <div id="apartmentSection" class="section" style="display:none;">
+            <h2>Apartment Configuration</h2>
+            <div id="towersContainer"></div>
+            <div class="add-btn-container">
+                <button type="button" id="addTowerBtn">Add Tower</button>
+            </div>
+        </div>
+
+        <div id="individualSection" class="section" style="display:none;">
+            <h2>Individual Home Configuration</h2>
+
+            <div id="laneChoiceContainer" style="display:none;">
+                <label><input type="radio" name="individual_has_lane" value="yes"> Homes with Lane</label>
+                <label style="margin-left: 20px;"><input type="radio" name="individual_has_lane" value="no"> Homes without Lane</label>
+            </div>
+
+            <div id="lanesContainerDiv" style="display:none;">
+                <div id="lanesMatrix"></div>
+                <div class="add-btn-container"><button type="button" id="addLaneBtn">Add Lane</button></div>
+            </div>
+
+            <div id="noLaneContainer" style="display:none;">
+                <label for="houses_no_lane">Enter House Numbers (ranges or comma-separated):</label>
+                <input type="text" name="houses_no_lane" id="houses_no_lane" placeholder="e.g. 1-10,15,20" />
+            </div>
+        </div>
+
+        <div style="text-align: center;"><button type="submit" name="action" value="manual">Save Configuration</button></div>
+    
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flashMessage" style="position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+                background: #2e08ee; color: white; padding: 10px 20px; border-radius: 8px;
+                z-index: 1000; transition: opacity 0.5s ease;">
+            {% for category, message in messages %}
+                {{ message }}
+            {% endfor %}
+            </div>
+            <script>
+            setTimeout(() => {
+                const flash = document.getElementById('flashMessage');
+                if (flash) {
+                flash.style.opacity = '0';
+                setTimeout(() => flash.remove(), 500);
+                }
+            }, 2000);
+            </script>
+        {% endif %}
+        {% endwith %}
+
+
+    </form>
+
+    <footer id="centered-dev-footer">
+        D3 by: 
+        <a href="mailto:siva.admn25@gmail.com" class="underline hover:text-blue-700">siva.admn25@gmail.com</a>
+    </footer>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const housingType = document.getElementById('housingType').value;
+        const apartmentSection = document.getElementById('apartmentSection');
+        const individualSection = document.getElementById('individualSection');
+        const addTowerBtn = document.getElementById('addTowerBtn');
+        const towersContainer = document.getElementById('towersContainer');
+        const addLaneBtn = document.getElementById('addLaneBtn');
+        const lanesContainerDiv = document.getElementById('lanesContainerDiv');
+        const noLaneContainer = document.getElementById('noLaneContainer');
+        const downloadTemplateBtn = document.getElementById('downloadTemplateBtn'); 
+        const uploadSection = document.getElementById('uploadSection'); 
+        const configFileInput = document.getElementById('configFileInput'); 
+        const uploadSubmitBtn = document.getElementById('uploadSubmitBtn'); 
+
+        const recipe = {{ recipe|tojson }};
+
+        // --- Template Download Logic ---
+        function generateApartmentTemplate() {
+            return "Tower,Start_Flat,End_Flat,Start_Series,End_Series,Missing_Series,Additional_Flats,Remove_Flats\nA,1,4,1,5,3,105,402";
+        }
+
+        function generateVillasLanesTemplate() {
+            return "Lane,Base_Houses,Additional_Houses,Remove_Houses\nMAIN_ST,1-10,25,4";
+        }
+
+        function generateVillasNoLanesTemplate() {
+            // FIX: Uses quotes for single cell integrity in CSV
+            return "House_Numbers_Raw\n\"1-10,15,20,A-101\"";
+        }
+
+        function downloadTemplate(filename, data) {
+            const blob = new Blob([data], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            a.remove();
+        }
+
+        downloadTemplateBtn.addEventListener('click', () => {
+            let templateData;
+            let filename;
+
+            if (housingType.startsWith("Apartment")) {
+                templateData = generateApartmentTemplate();
+                filename = 'Apartment_House_Config.csv';
+            } else if (housingType === "Villas-Lanes") {
+                templateData = generateVillasLanesTemplate();
+                filename = 'Villas_Lanes_House_Config.csv';
+            } else if (housingType === "Villas-No Lanes" || housingType.startsWith("Civil")) {
+                templateData = generateVillasNoLanesTemplate();
+                filename = 'Individual_House_Config.csv';
+            } else {
+                alert('Cannot download template: Unknown housing type.');
+                return;
+            }
+
+            downloadTemplate(filename, templateData);
+        });
+
+        // --- Conditional Button Activation FIX ---
+        configFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                uploadSubmitBtn.disabled = false;
+                uploadSubmitBtn.style.backgroundColor = '#2980b9'; 
+            } else {
+                uploadSubmitBtn.disabled = true;
+                // Rely on the new CSS rule for the gray appearance
+                uploadSubmitBtn.style.backgroundColor = ''; 
+            }
+        });
+
+        // --- Form Submission Validation (Prevents file requirement for manual save) ---
+        document.getElementById('homeManagementForm').addEventListener('submit', function(e) {
+            // Find the submitter button's value (manual or upload)
+            const action = e.submitter ? e.submitter.value : null;
+
+            if (action === 'upload') {
+                if (!configFileInput.files.length) {
+                    e.preventDefault();
+                    alert("Please select an Excel or CSV file before uploading.");
+                    return false;
+                }
+            }
+            // Manual save action proceeds normally without file requirement
+        });
+
+
+        // --- Dynamic Form Display ---
+        if (housingType.startsWith("Apartment")) {
+            apartmentSection.style.display = 'block';
+            uploadSection.style.display = 'block';
+            downloadTemplateBtn.textContent = "Download Apartment Template";
+        } else if (housingType.startsWith("Villas")) {
+            individualSection.style.display = 'block';
+            uploadSection.style.display = 'block';
+            if (housingType === "Villas-Lanes") {
+                lanesContainerDiv.style.display = 'block';
+                downloadTemplateBtn.textContent = "Download Villas (Lanes) Template";
+            } else if (housingType === "Villas-No Lanes") {
+                noLaneContainer.style.display = 'block';
+                downloadTemplateBtn.textContent = "Download Villas (No Lanes) Template";
+            }
+        } else if (housingType.startsWith("Civil")) {
+            individualSection.style.display = 'block';
+            uploadSection.style.display = 'block';
+            noLaneContainer.style.display = 'block';
+            downloadTemplateBtn.textContent = "Download Civil Template";
+        } else {
+            uploadSection.style.display = 'none';
+        }
+
+
+        // ---------- Helpers (Your existing functions) ----------
+        function createTowerCard(index, towerData={}) {
+            const div = document.createElement('div');
+            div.className = 'item-card';
+            div.innerHTML = `
+                <button type="button" class="remove-btn" title="Remove Tower">&times;</button>
+                <label>Tower Name: <input type="text" name="towers[${index}][name]" placeholder="A" style="text-transform:uppercase" value="${towerData.name||''}" ${housingType === "Apartment-Single Tower" ? "" : "required"}></label>
+                <label>Start Flat No: <input type="number" name="towers[${index}][start_flat]" required value="${towerData.start_flat||''}"></label>
+                <label>End Flat No: <input type="number" name="towers[${index}][end_flat]" required value="${towerData.end_flat||''}"></label>
+                <label>Start Series (floor): <input type="number" name="towers[${index}][start_series]" required value="${towerData.start_series||''}"></label>
+                <label>End Series (floor): <input type="number" name="towers[${index}][end_series]" required value="${towerData.end_series||''}"></label>
+                <label>Missing Series (comma-sep): <input type="text" name="towers[${index}][missing_series]" placeholder="e.g. 3,5" value="${towerData.missing_series||''}"></label>
+                <label>Additional Flats (comma-sep): <input type="text" name="towers[${index}][additional_flats]" placeholder="e.g. 102,105" value="${towerData.additional_flats||''}"></label>
+                <label>Remove Flats (comma-sep): <input type="text" name="towers[${index}][remove_flats]" placeholder="e.g. 109,110" value="${towerData.remove_flats||''}"></label>
+            `;
+            div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
+            towersContainer.appendChild(div);
+        }
+
+        function createLaneCard(index, laneData={}) {
+            const laneCol = document.createElement('div');
+            laneCol.className = 'item-card';
+            laneCol.innerHTML = `
+                <button type="button" class="remove-btn" title="Remove Lane">&times;</button>
+                <label>Lane Name: <input type="text" name="lanes[${index}][name]" required value="${laneData.name||''}"></label>
+                <label>Base House Numbers: <input type="text" name="lanes[${index}][base]" required placeholder="e.g. 1-10,15,18" value="${laneData.base||''}"></label>
+                <label>Additional Houses: <input type="text" name="lanes[${index}][additional]" placeholder="e.g. 20,22" value="${laneData.additional||''}"></label>
+                <label>Remove Houses: <input type="text" name="lanes[${index}][remove]" placeholder="e.g. 5,7" value="${laneData.remove||''}"></label>
+            `;
+            laneCol.querySelector('.remove-btn').addEventListener('click', () => laneCol.remove());
+            document.getElementById('lanesMatrix').appendChild(laneCol);
+        }
+
+        // ---------- Populate form elements (Original Logic) ----------
+        if (housingType.startsWith("Apartment")) {
+            addTowerBtn.disabled = false;
+            if (recipe.apartment && recipe.apartment.towers) {
+                recipe.apartment.towers.forEach((t, i) => createTowerCard(i, t));
+            }
+
+            addTowerBtn.addEventListener('click', () => {
+                if (housingType === "Apartment-Single Tower" && towersContainer.children.length >= 1) {
+                    alert("Only one tower allowed for Single Tower type.");
+                    return;
+                }
+                createTowerCard(towersContainer.children.length);
+            });
+
+        } else if (housingType.startsWith("Villas")) {
+            addLaneBtn.disabled = housingType !== "Villas-Lanes";
+            if (recipe.individual?.lanes && housingType === "Villas-Lanes") {
+                recipe.individual.lanes.forEach((l, i) => createLaneCard(i, l));
+            }
+            if (recipe.individual?.house_numbers && housingType === "Villas-No Lanes") {
+                document.getElementById('houses_no_lane').value = recipe.individual?.house_numbers?.numbers_raw || '';
+            }
+        } else if (housingType.startsWith("Civil")) {
+            addLaneBtn.disabled = true;
+            if (recipe.individual?.house_numbers) {
+                document.getElementById('houses_no_lane').value = recipe.individual?.house_numbers?.numbers_raw || '';
+            }
+        }
+
+        // Default add lane button handler
+        addLaneBtn.addEventListener('click', () => createLaneCard(document.getElementById('lanesMatrix').children.length));
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', e => {
+        if (
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && e.key.toUpperCase() === "U")
+        ) e.preventDefault();    
+        });   
+    });
+    </script>
+
+</body>
+</html>

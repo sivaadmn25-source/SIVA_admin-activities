@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>View Results</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f7fa;
+      margin: 0;
+      padding: 0;
+      /* ⭐ STANDARDIZATION: Body Max Width (600px) ⭐ */
+      max-width: 600px; 
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ===============================
+       FLASH MESSAGE FIX
+    =============================== */
+    .flashed-messages-wrapper {
+      position: fixed;
+      /* Adjusted top margin to clear new 60px ribbon */
+      top: 90px; 
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 90%; 
+      z-index: 2000;
+      text-align: center;
+    }
+
+    .flash-alert {
+      display: inline-block;
+      padding: 15px 25px;
+      margin: 10px auto;
+      border-radius: 8px;
+      font-weight: bold;
+      background-color: #f8d7da;
+      border: 2px solid #f5c6cb;
+      color: #721c24;
+      font-size: 1.1em;
+      animation: fadein 0.3s ease-in;
+    }
+
+    @keyframes blink {
+      0%, 100% { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
+      50% { background-color: #dc3545; color: #fff; border-color: #c82333; }
+    }
+    .chakra {
+      width: 40px;
+      height: 40px;
+      animation: spinChakra 10s linear infinite;
+      transform-origin: 50% 50%;
+    }
+
+    @keyframes spinChakra {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
+    .flash-alert.blink {
+      animation: blink 0.6s step-start infinite;
+    }
+
+    .flash-alert.fade-out {
+      opacity: 0;
+      transition: opacity 1s ease-out;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ===============================
+       STATUS & RIBBON STYLES
+    =============================== */
+    .status-alert {
+      padding: 15px;
+      margin-bottom: 25px;
+      border-radius: 8px;
+      font-size: 1.1em;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-closed {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-not-started {
+      background-color: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+
+    .ribbon {
+      width: 100%;
+      /* ⭐ STANDARDIZATION: Ribbon Max Width (600px) ⭐ */
+      max-width: 600px;
+      /* ⭐ STANDARDIZATION: Ribbon Height (60px) ⭐ */
+      height: 60px; 
+      background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%);
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #0000FF;
+      /* ⭐ STANDARDIZATION: Ribbon Text Size (1.8rem, adjusted from 2.2rem) ⭐ */
+      font-size: 1.8rem; 
+      font-weight: bold;
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      white-space: nowrap; /* Prevent ribbon text wrapping */
+    }
+    .ribbon h1 {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 0;
+      color: #0000FF;
+      font-size: 1.8rem;
+    }
+
+    /* Rainbow SIVA text aligned to match ribbon font (Added/Standardized) */
+    .ribbon .siva-text {
+        font-weight: 500;
+        font-size: 2.2rem;
+        background: linear-gradient(270deg, gold, orange, yellow, green, blue, indigo, violet, gold);
+        background-size: 400% 100%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+        margin-left: 6px;
+        white-space: nowrap;
+        animation: rainbow 6s ease infinite;
+    }
+
+    @keyframes rainbow {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; } 
+        100% { background-position: 0% 50%; }
+    }
+    
+    .page-container {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    .container {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+      /* ⭐ STANDARDIZATION: Container Max Width (100% of 600px body) ⭐ */
+      max-width: 100%;
+      width: 90%;
+      text-align: center;
+      /* Adjusted margin to clear 60px ribbon */
+      margin-top: 100px; 
+    }
+
+    h1 {
+      font-size: 32px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+    }
+
+    .results-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 20px;
+      gap: 20px;
+    }
+    
+    .tower-card {
+      width: 90%;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background-color: #f9f9f9;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+      border-top: 5px solid #3498db;
+    }
+
+    .tower-card h3 {
+      font-size: 24px;
+      color: #2c3e50;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+    }
+
+    .tower-card ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .result-item {
+      background-color: #ffffff;
+      padding: 15px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+      border-left: 5px solid #2ecc71;
+    }
+
+    .result-info {
+      /* Uses display: flex to align photo, symbol, and name */
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      text-align: left;
+    }
+
+    /* ⭐ FIX: Contestant Photo Style (Circular/Cover) ⭐ */
+    .contestant-photo-display {
+      width: 60px; 
+      height: 60px;
+      object-fit: cover; 
+      border-radius: 50%; 
+      border: 3px solid #1c5980; 
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+      flex-shrink: 0; /* Prevents shrinking */
+    }
+
+    /* ⭐ FIX: Contestant Symbol Style (Contained/Boxed) ⭐ */
+    .contestant-symbol-display {
+      width: 40px; 
+      height: 40px;
+      object-fit: contain; /* Keeps logo fully visible */
+      border-radius: 4px; /* Square/Box frame for the symbol */
+      border: 1px solid #ddd;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      margin-left: 10px; /* Space before votes */
+      flex-shrink: 0;
+    }
+
+    /* Remove generic image styling from original code */
+    .result-info img {
+        margin: 0;
+        padding: 0;
+    }
+
+    .result-info span {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .result-votes {
+        /* Container for votes to push them to the right */
+        display: flex;
+        align-items: center;
+    }
+
+    .result-votes strong {
+      color: #3498db;
+      font-size: 1.1em;
+    }
+
+    .exit-btn {
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .print-btn {
+      background-color: #3498db;
+    }
+
+    .button-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-top: 30px;
+      gap: 15px;
+    }
+
+    .print-footer, .print-border-wrapper {
+      /* Ensure the print wrapper is hidden by default */
+      display: none;
+    }
+    
+    @media print {
+      @page {
+        margin: 1cm;
+        @bottom-center {
+          content: "Page " counter(page) " of " counter(pages);
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+          font-size: 9pt;
+          color: #555;
+        }
+      }
+
+      body {
+        background-color: #fff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .ribbon, .button-container, .status-alert, .flashed-messages-wrapper {
+        display: none;
+      }
+
+      .page-container {
+        display: block;
+      }
+
+      .container {
+        margin: 1cm;
+        padding: 1.5cm;
+        width: auto;
+        max-width: 100%;
+        box-shadow: none;
+        border: none;
+      }
+      
+      /* ⭐ FIX: Ensures the gold print border is visible in PDF ⭐ */
+      .print-border-wrapper {
+        display: block; 
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        border: 8px double #DAA520;
+        z-index: -1;
+      }
+
+      .tower-card, .result-item {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        page-break-inside: avoid;
+        background-color: #fdfdfd !important;
+      }
+
+      h1 {
+        font-size: 26pt !important;
+        color: #D84315 !important;
+        font-weight: 700 !important;
+        text-align: center;
+        margin-bottom: 25px;
+      }
+
+      .tower-card h3, .result-info span, .result-votes strong {
+        color: #007BFF !important;
+      }
+
+      .tower-card h3 {
+        font-size: 16pt;
+        border-bottom: 2px solid #ddd;
+        padding-bottom: 10px;
+      }
+
+      .result-info span {
+        font-size: 12pt;
+      }
+
+      /* Print images smaller */
+      .contestant-photo-display, .contestant-symbol-display {
+          width: 40px !important; 
+          height: 40px !important;
+          border: 2px solid #138808 !important; 
+      }
+      
+      .result-info img {
+        border-radius: 50%;
+      }
+
+      .print-footer {
+        display: block;
+        position: fixed;
+        bottom: 1.5cm;
+        left: 2cm;
+        right: 2cm;
+        text-align: center;
+        background-color: #fff;
+      }
+
+      .footer-top {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        font-size: 10pt;
+        font-weight: bold;
+        border-top: 1px solid #ccc;
+        padding-top: 5px;
+      }
+
+      .footer-society {
+        color: #D84315 !important;
+      }
+
+      .footer-date {
+        color: #007BFF !important;
+      }
+
+      .footer-bottom {
+        margin-top: 5px;
+        font-size: 8pt;
+        color: #777;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-border-wrapper"></div>
+
+  <div class="ribbon">
+    <h1>
+        <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="48" stroke="#0000FF" stroke-width="4" fill="none"/>
+          <g stroke="#0000FF" stroke-width="2">
+            <g transform="translate(50,50)">
+              <circle r="3" fill="#0000FF"/>
+              <defs>
+                <line id="spoke" y1="3" y2="-47"/>
+              </defs>
+              {% for i in range(0, 360, 15) %}
+                <use href="#spoke" transform="rotate({{ i }})"/>
+              {% endfor %}
+            </g>
+          </g>
+        </svg>
+    {% if voting_status == 'CLOSED' %}
+      Final Election Results - <span class="siva-text">SIVA</span>
+    {% else %}
+      Pre-Election Results - <span class="siva-text">SIVA</span>
+    {% endif %}
+    </h1>
+  </div>
+
+  <div class="flashed-messages-wrapper">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash-alert" role="alert">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+  </div>
+
+  <div class="page-container">
+    <div class="container">
+      <h1>{{ society_name }} - Election Results</h1>
+
+      {% if voting_status == 'CLOSED' %}
+        <div class="status-alert alert-closed">
+          🏆 **This is the FINAL result.** Voting concluded successfully on {{ election_date }}.
+        </div>
+      {% elif voting_status == 'NOT_STARTED' %}
+        <div class="status-alert alert-not-started">
+          🚧 **PRE-ELECTION COUNT.** Voting has not started. These results reflect the current number of contestants only.
+        </div>
+      {% endif %}
+
+      <div class="results-container">
+        {% if results %}
+          {% for tower, contestants in results.items() %}
+            <div class="tower-card">
+              <h3>Tower: {{ tower }}</h3>
+              <ul>
+                {% for contestant in contestants %}
+                  <li class="result-item">
+                    <div class="result-info">
+                        {% if contestant.photo %}
+                            <img src="{{ contestant.photo }}" alt="{{ contestant.name }} Photo" class="contestant-photo-display">
+                        {% endif %}
+                        
+                        <span>{{ contestant.name }}</span>
+                    </div>
+                    <div class="result-votes">
+                        <img src="{{ url_for('uploaded_file', filename=contestant.symbol) if contestant.symbol else url_for('static', filename='images/default_symbol.png') }}" alt="{{ contestant.name }} Symbol" class="contestant-symbol-display">
+                        
+                        <strong>Votes: {{ contestant.vote_count }}</strong>
+                    </div>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p>No results to display for the current election. No contestants have been registered.</p>
+        {% endif %}
+      </div>
+
+      <div class="button-container">
+        <button type="button" onclick="printPage()" class="exit-btn print-btn">Print to PDF</button>
+        <a href="{{ url_for('admin_panel') }}" class="exit-btn">Back to Admin Panel</a>
+      </div>
+
+      <div class="print-footer">
+        <div class="footer-top">
+          <span class="footer-society">{{ society_name }} Community</span>
+          <span class="footer-date">
+            {% if voting_status == 'CLOSED' %}
+              Election Concluded on: {{ election_date }}
+            {% else %}
+              Report Date: {{ election_date }} (Pre-Election)
+            {% endif %}
+          </span>
+        </div>
+        <div class="footer-bottom">
+          Designed by: vpchaya@gmail.com | Developed by: 5420331.Lokesh@gmail.com
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const alerts = document.querySelectorAll('.flash-alert');
+
+      alerts.forEach(alert => {
+        // Add blinking effect
+        alert.classList.add('blink');
+
+        // Stop blinking and fade out after 5s
+        setTimeout(() => {
+          alert.classList.remove('blink');
+          alert.classList.add('fade-out');
+        }, 5000);
+
+        // Remove element after fade-out
+        setTimeout(() => {
+          alert.remove();
+        }, 6000);
+      });
+    });
+
+    function printPage() {
+      window.print();
+    }
+    function disableBackButton() {
+        // Replace current history entry to prevent returning to the page *before* this one
+        history.replaceState(null, document.title, location.href); 
+        
+        // Listen for the back button event, and force them to stay on the page.
+        window.addEventListener('popstate', function () {
+            history.pushState(null, document.title, location.href);
+        });
+    } 
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && e.key.toUpperCase() === "U")
+      ) e.preventDefault();
+    });
+
+  </script>
+</body>
+</html>
