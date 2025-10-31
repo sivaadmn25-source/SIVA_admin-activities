@@ -316,6 +316,51 @@ def admin_password_prompt():
 
     return render_template("admin_password_prompt.html")
 
+@app.route('/public_reset_password', methods=['POST'])
+def public_reset_password():
+    # Fields from the HTML form
+    society_name = request.form.get('society_name')
+    email_id = request.form.get('email_id')
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+
+    if new_password != confirm_password:
+        flash("New passwords do not match.", 'error')
+        return redirect(url_for('admin_password_prompt'))
+    
+    if not society_name or not email_id or not new_password:
+        flash("All fields are required.", 'error')
+        return redirect(url_for('admin_password_prompt'))
+        
+    conn = None
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+        
+        # NOTE: Updating the password_hash column with the PLAIN PASSWORD as requested by the user.
+        # This is extremely insecure.
+        cur.execute(
+            "UPDATE admins SET password_hash = %s WHERE society_name = %s AND email = %s", 
+            (new_password, society_name, email_id)
+        )
+        
+        if cur.rowcount == 0:
+            flash("No matching details to update.", 'error')
+        else:
+            conn.commit()
+            flash("Updated successfully.", 'success')
+            
+        return redirect(url_for('admin_password_prompt'))
+        
+    except (Exception, psycopg2.DatabaseError) as e:
+        app.logger.error(f"Error during public password reset: {e}")
+        flash("An unexpected error occurred during the password reset.", 'error')
+    finally:
+        if conn:
+            conn.close()
+            
+    return redirect(url_for('admin_password_prompt'))
+  
 @app.route('/super-admin-password', methods=['GET', 'POST'])
 def super_admin_password_prompt():
     if current_user.is_authenticated:
