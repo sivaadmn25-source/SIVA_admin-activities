@@ -111,7 +111,7 @@
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
-      gap: 15px; /* Reduced gap slightly to fit 5 items per row on wider screen */
+      gap: 20px;
       margin-bottom: 25px;
     }
   
@@ -119,9 +119,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      /* Adjusted flex: 1 1 (100%/2 - gap) to maintain 2-column layout on smaller screen, 
-         but will allow 3-column wrap if necessary on wider screen due to reduced gap. */
-      flex: 1 1 calc(50% - 10px); 
+      flex: 1 1 calc(50% - 10px);
       min-width: 250px;
     }
   
@@ -276,13 +274,12 @@
       box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     }
   
-    .modal-content input, .modal-content select { /* Added select for the new modal */
+    .modal-content input {
       width: 80%;
       padding: 10px;
       margin-bottom: 15px;
       border-radius: 5px;
       border: 1px solid #ccc;
-      box-sizing: border-box; /* Ensures padding is included in the width */
     }
   
     .modal-buttons {
@@ -444,33 +441,6 @@
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
     }
-
-    /* ⭐ NEW STYLES for Blocked Flats Display Modal ⭐ */
-    #blockedFlatsList {
-        text-align: left;
-        max-height: 250px;
-        overflow-y: auto;
-        border: 1px solid #eee;
-        padding: 10px;
-        margin-top: 10px;
-        border-radius: 5px;
-        background: #f9f9f9;
-        font-size: 0.9em;
-    }
-    #blockedFlatsList ul {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    #blockedFlatsList li {
-        padding: 5px 0;
-        border-bottom: 1px dotted #ddd;
-        font-weight: 500;
-        color: #e74c3c;
-    }
-    #blockedFlatsList li:last-child {
-        border-bottom: none;
-    }
   </style>  
 </head>
 <body>
@@ -521,7 +491,6 @@
         ❌ <strong>STATUS ERROR:</strong> <span style="color: #721c24; font-size: 1.1em;">Unable to retrieve or parse voting status (Status: {{ voting_status }}).</span>
     </div>
     {% endif %}
-    
     <div class="button-grid">
       <div class="grid-item">
         <a href="{{ url_for('view_results') }}" class="btn btn-primary">View Results</a>
@@ -535,13 +504,6 @@
       </div>
       <div class="grid-item">
         <button type="button" class="btn btn-primary" id="setMaxSelectionBtn">Set Max Selection</button>
-      </div>
-      
-      <div class="grid-item">
-        <button type="button" class="btn btn-danger" id="toggleBlockBtn">Block/Unblock Voters</button>
-      </div>
-      <div class="grid-item">
-        <button type="button" class="btn btn-primary" id="viewBlockedFlatsBtn">View Blocked Voters</button>
       </div>
 
       <div class="grid-item">
@@ -611,88 +573,132 @@
       </div>
     </div>
   </div>
-  
-  <div id="toggleBlockModal" class="modal-overlay">
-    <div class="modal-content">
-      <h3 id="toggleBlockTitle">Block Voting for Household</h3>
-      <div class="modal-message" id="toggleBlockMessage"></div>
-      
-      <select id="blockActionSelect" style="width: 80%; margin-bottom: 15px;">
-        <option value="1">Block (Disallow Voting)</option>
-        <option value="0">Unblock (Allow Voting)</option>
-      </select>
-      
-      <input type="text" id="blockTowerInput" placeholder="Tower/Lane (A, B, N/A)" style="text-transform:uppercase;" />
-      <input type="text" id="blockFlatInput" placeholder="Flat/House Number (e.g., 101, 1-10)" required />
-      
-      <div class="modal-buttons">
-        <button type="button" class="btn btn-danger" id="confirmBlockButton">Confirm Action</button>
-        <button type="button" class="btn btn-secondary" id="cancelBlockButton">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="viewBlockedFlatsModal" class="modal-overlay">
-    <div class="modal-content">
-      <h3>Blocked Households Audit</h3>
-      <div id="blockedFlatsList">Loading...</div>
-      <div class="modal-buttons">
-        <button type="button" class="btn btn-secondary" id="closeBlockedFlatsButton">Close</button>
-      </div>
-    </div>
-  </div>
-  
-  <div id="votingTimeModal" class="modal" style="display:none; position:fixed; z-index:1000; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6);">
-      <div style="background:white; padding:20px; max-width:400px; margin:10% auto; border-radius:10px; position:relative;">
-          <h3>Set Voting Timing</h3>
-          
-          <label for="startTime">Start Time:</label><br>
-          <input type="datetime-local" id="startTime" name="startTime" required><br><br>
-          
-          <label for="endTime">End Time:</label><br>
-          <input type="datetime-local" id="endTime" name="endTime" required><br><br>
-          
-          <p style="font-size: 0.9em; color: #888; margin-top: 10px;">
-              * After selecting the time in the calendar, click **Save** to confirm your schedule.
-          </p>
-          
-          <div style="margin-top: 20px;">
-              <button id="saveVotingTimeBtn" class="btn btn-primary">Save Voting Time</button>
-              <button onclick="closeVotingModal()" class="btn" style="margin-left: 10px;">Close</button>
-          </div>
-      </div>
-  </div>
-
-
   <script>
   function closeVotingModal() {
     document.getElementById("votingTimeModal").style.display = "none";
   }
 
   document.addEventListener('DOMContentLoaded', function () {
-    // --- Global Elements ---
-    const societyType = '{{ session.get("housing_type") }}';
-    const isApartment = societyType.startsWith('Apartment');
-    const isVillasLanes = societyType.includes('Lanes');
+    const resetVotesButton = document.getElementById('resetVotesButton');
+    const passwordPromptModal = document.getElementById('passwordPromptModal');
+    const superAdminPasswordInput = document.getElementById('superAdminPasswordInput');
+    const confirmSuperAdminPasswordInput = document.getElementById('confirmSuperAdminPasswordInput');
+    const confirmResetButton = document.getElementById('confirmResetButton');
+    const cancelResetButton = document.getElementById('cancelResetButton');
+    const passwordModalMessage = document.getElementById('passwordModalMessage');
+    const setMaxSelectionBtn = document.getElementById('setMaxSelectionBtn');
+    const setMaxSelectionModal = document.getElementById('setMaxSelectionModal');
+    const maxCandidatesInput = document.getElementById('maxCandidatesInput');
+    const saveMaxSelectionButton = document.getElementById('saveMaxSelectionButton');
+    const cancelMaxSelectionButton = document.getElementById('cancelMaxSelectionButton');
+    const maxSelectionModalMessage = document.getElementById('maxSelectionModalMessage');
+    const secretCodesInput = document.getElementById('secretCodes');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const setVotingTimeBtn = document.getElementById('setVotingTimeBtn');
+    const saveVotingTimeBtn = document.getElementById('saveVotingTimeBtn');
 
-    // --- Block/Unblock Elements ---
-    const toggleBlockBtn = document.getElementById('toggleBlockBtn');
-    const toggleBlockModal = document.getElementById('toggleBlockModal');
-    const confirmBlockButton = document.getElementById('confirmBlockButton');
-    const cancelBlockButton = document.getElementById('cancelBlockButton');
-    const blockTowerInput = document.getElementById('blockTowerInput');
-    const blockFlatInput = document.getElementById('blockFlatInput');
-    const toggleBlockTitle = document.getElementById('toggleBlockTitle');
-    const blockActionSelect = document.getElementById('blockActionSelect');
-    const toggleBlockMessage = document.getElementById('toggleBlockMessage');
-    const viewBlockedFlatsBtn = document.getElementById('viewBlockedFlatsBtn');
-    const viewBlockedFlatsModal = document.getElementById('viewBlockedFlatsModal');
-    const blockedFlatsList = document.getElementById('blockedFlatsList');
-    const closeBlockedFlatsButton = document.getElementById('closeBlockedFlatsButton');
 
-    // --- Utility Functions ---
+    resetVotesButton.addEventListener('click', function () {
+      passwordPromptModal.classList.add('active');
+      superAdminPasswordInput.value = '';
+      confirmSuperAdminPasswordInput.value = '';
+      passwordModalMessage.textContent = '';
+      superAdminPasswordInput.focus();
+    });
 
-    // Function to show the custom AJAX error message box
+    cancelResetButton.addEventListener('click', function () {
+      passwordPromptModal.classList.remove('active');
+    });
+
+    confirmResetButton.addEventListener('click', async function () {
+      const password = superAdminPasswordInput.value;
+      const confirmPassword = confirmSuperAdminPasswordInput.value;
+
+      passwordModalMessage.textContent = ''; 
+
+      if (password === '' || confirmPassword === '') {
+        passwordModalMessage.textContent = 'Please enter both passwords.';
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        passwordModalMessage.textContent = 'Passwords do not match.';
+        return;
+      }
+
+      try {
+        const response = await fetch('/reset_votes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: password,
+            confirm_password: confirmPassword
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert(data.message);
+          window.location.reload();
+        } else {
+          passwordModalMessage.textContent = data.message || 'An error occurred.';
+        }
+      } catch (error) {
+        console.error('Error during reset votes:', error);
+        passwordModalMessage.textContent = 'A network or server error occurred. Please try again.';
+      }
+    });
+
+
+    setMaxSelectionBtn.addEventListener('click', function() {
+      setMaxSelectionModal.classList.add('active');
+      maxCandidatesInput.value = '';
+      maxSelectionModalMessage.textContent = '';
+      maxCandidatesInput.focus();
+    });
+
+    cancelMaxSelectionButton.addEventListener('click', function() {
+      setMaxSelectionModal.classList.remove('active');
+    });
+
+    saveMaxSelectionButton.addEventListener('click', async function() {
+      const maxSelection = parseInt(maxCandidatesInput.value, 10);
+
+      if (isNaN(maxSelection) || maxSelection < 1) {
+        maxSelectionModalMessage.textContent = 'Please enter a valid number (minimum 1).';
+        return;
+      }
+
+      try {
+        const response = await fetch('/update_max_selection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ max_candidates_selection: maxSelection }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          alert('Maximum selection updated successfully!');
+          setMaxSelectionModal.classList.remove('active');
+        } else {
+          maxSelectionModalMessage.textContent = data.message || 'Failed to update maximum selection.';
+        }
+      } catch (error) {
+        console.error('Error updating max selection:', error);
+        maxSelectionModalMessage.textContent = 'An error occurred. Please try again.';
+      }
+    });
+
+    secretCodesInput.addEventListener('change', function() {
+      if (this.files.length > 0) {
+        fileNameDisplay.textContent = this.files[0].name;
+      } else {
+        fileNameDisplay.textContent = 'No file selected.';
+      }
+    });
+
     function showCustomError(message) {
         const msgBox = document.getElementById('ajax-error-message');
         if (!msgBox) return alert(message);
@@ -706,150 +712,95 @@
         }, 5000); 
     }
 
-    // --- Blocking Feature Handlers ---
-
-    // 1. Open Toggle Block Modal
-    toggleBlockBtn.addEventListener('click', function() {
-        // Set placeholder based on society type
-        if (!isApartment && !isVillasLanes) {
-            blockTowerInput.style.display = 'none';
-        } else {
-            blockTowerInput.style.display = 'block';
-            blockTowerInput.placeholder = isApartment ? 'Tower (e.g., A)' : 'Lane (e.g., Main St)';
-            blockFlatInput.placeholder = isApartment ? 'Flat Number (e.g., 101)' : 'House Number (e.g., 15)';
-        }
-        
-        blockFlatInput.value = '';
-        blockTowerInput.value = '';
-        toggleBlockMessage.textContent = '';
-        toggleBlockModal.classList.add('active');
-        blockFlatInput.focus();
-    });
-
-    cancelBlockButton.addEventListener('click', function() {
-        toggleBlockModal.classList.remove('active');
-    });
-
-    // 2. Process Block/Unblock Action (AJAX)
-    confirmBlockButton.addEventListener('click', async function() {
-        const tower = isApartment || isVillasLanes ? blockTowerInput.value.trim().toUpperCase() : 'N/A';
-        const flat = blockFlatInput.value.trim();
-        const block_status = blockActionSelect.value;
-        const block_text = block_status === '1' ? 'Blocking' : 'Unblocking';
-
-        if ((isApartment || isVillasLanes) && !tower) {
-            toggleBlockMessage.textContent = 'Tower/Lane is required.';
+    saveVotingTimeBtn.addEventListener("click", async function () {
+        const startInput = document.getElementById("startTime").value;
+        const endInput = document.getElementById("endTime").value;
+    
+        if (!startInput || !endInput) {
+            showCustomError("Both start and end times are required.");
             return;
         }
-        if (!flat) {
-            toggleBlockMessage.textContent = 'Flat/House Number is required.';
-            return;
-        }
+
+        const payload = {
+            startTime: new Date(startInput).toISOString(),
+            endTime: new Date(endInput).toISOString()
+        };
 
         try {
-            const response = await fetch('/toggle_block', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tower: tower,
-                    flat: flat,
-                    block_status: block_status
-                }),
+            const response = await fetch("/set-voting-time", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
             });
 
-            const data = await response.json();
-            toggleBlockModal.classList.remove('active');
-            
-            if (data.success) {
-                alert(`Success: ${flat} was successfully ${block_text.toLowerCase()}.`);
+            const data = await response.json(); 
+
+            if (response.ok) {
+                alert("Voting schedule updated successfully."); 
+                closeVotingModal();
             } else {
-                alert(`Error: Failed to perform action. ${data.message}`);
+                showCustomError(data.message || 'Error saving schedule: Unknown error'); 
             }
-        } catch (error) {
-            showCustomError(`${block_text} failed: Network error.`);
-            toggleBlockModal.classList.remove('active');
+        } catch (err) {
+            console.error("Error saving voting schedule:", err);
+            showCustomError("A server error occurred while saving voting schedule. Please try again.");
         }
     });
-
-
-    // 3. View Blocked Flats (AJAX)
-    viewBlockedFlatsBtn.addEventListener('click', async function() {
-        blockedFlatsList.innerHTML = 'Loading blocked households...';
-        viewBlockedFlatsModal.classList.add('active');
-
-        try {
-            const response = await fetch('/get_blocked_flats');
-            const data = await response.json();
-
-            if (data.success && data.blocked_households && data.blocked_households.length > 0) {
-                let html = '<ul>';
-                data.blocked_households.forEach(item => {
-                    html += `<li>${item}</li>`;
-                });
-                html += '</ul>';
-                blockedFlatsList.innerHTML = html;
-            } else {
-                blockedFlatsList.innerHTML = '<p style="color: green; font-weight: bold;">✅ No households are currently blocked.</p>';
-            }
-        } catch (error) {
-            blockedFlatsList.innerHTML = '<p style="color: red;">Failed to load blocked list due to server error.</p>';
-        }
-    });
-
-    closeBlockedFlatsButton.addEventListener('click', function() {
-        viewBlockedFlatsModal.classList.remove('active');
-    });
-
-    // --- Existing Functionality Handlers ---
-    // (Other handlers remain, including Reset Votes, Set Max Selection, Set Voting Times)
-    
-    // ... (Your existing Reset Votes, Set Max Selection, Set Voting Times JS handlers go here) ...
-    
-    // NOTE: For brevity, I'm omitting the full code for Reset Votes, Set Max Selection, etc., 
-    // but they must be present in your final file.
-    
-    // Example placeholder for one existing function's implementation:
-    const resetVotesButton = document.getElementById('resetVotesButton');
-    resetVotesButton.addEventListener('click', function () {
-        const passwordPromptModal = document.getElementById('passwordPromptModal');
-        // ... (standard modal display/handling) ...
-        passwordPromptModal.classList.add('active');
-    });
-
-    // --- File Upload Listener (For Upload Secret Codes) ---
-    const secretCodesInput = document.getElementById('secretCodes');
-    const fileNameDisplay = document.getElementById('fileNameDisplay');
-    secretCodesInput.addEventListener('change', function() {
-      if (this.files.length > 0) {
-        fileNameDisplay.textContent = this.files[0].name;
-      } else {
-        fileNameDisplay.textContent = 'No file selected.';
-      }
-    });
-
-  });
-  
-  // Existing Global Function
-  document.getElementById("setVotingTimeBtn").addEventListener("click", function () {
-      document.getElementById("votingTimeModal").style.display = "block";
-  });
-  
-  // Existing Global Function
-  function closeVotingModal() {
-    document.getElementById("votingTimeModal").style.display = "none";
-  }
-  
-  // Existing Anti-debugging scripts
-  document.addEventListener('contextmenu', e => e.preventDefault());
-  document.addEventListener('keydown', e => {
-      if (
-      e.key === "F12" ||
-      (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
-      (e.ctrlKey && e.key.toUpperCase() === "U")
-      ) e.preventDefault();
   });
   </script>
+
+<div id="votingTimeModal" class="modal" style="display:none; position:fixed; z-index:1000; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6);">
+    <div style="background:white; padding:20px; max-width:400px; margin:10% auto; border-radius:10px; position:relative;">
+        <h3>Set Voting Timing</h3>
+        
+        <label for="startTime">Start Time:</label><br>
+        <input type="datetime-local" id="startTime" name="startTime" required><br><br>
+        
+        <label for="endTime">End Time:</label><br>
+        <input type="datetime-local" id="endTime" name="endTime" required><br><br>
+        
+        <p style="font-size: 0.9em; color: #888; margin-top: 10px;">
+            * After selecting the time in the calendar, click **Save** to confirm your schedule.
+        </p>
+        
+        <div style="margin-top: 20px;">
+            <button id="saveVotingTimeBtn" class="btn btn-primary">Save Voting Time</button>
+            <button onclick="closeVotingModal()" class="btn" style="margin-left: 10px;">Close</button>
+        </div>
+    </div>
+</div>
+  <script>
+    document.getElementById("setVotingTimeBtn").addEventListener("click", function () {
+      document.getElementById("votingTimeModal").style.display = "block";
+    });
   
+    function closeVotingModal() {
+      document.getElementById("votingTimeModal").style.display = "none";
+    }
+  
+    const blinkingAlerts = document.querySelectorAll('.flash-alert.blink');
+    blinkingAlerts.forEach(alert => {
+        setTimeout(() => {
+            alert.classList.remove('blink');
+            alert.style.animation = 'none';
+        }, 5000);
+
+        setTimeout(() => {
+            alert.remove();
+        }, 6000);
+    });
+    
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', e => {
+      if (
+        e.key === "F12" ||
+        (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
+        (e.ctrlKey && e.key.toUpperCase() === "U")
+      ) e.preventDefault();
+    });
+  </script>
+  
+ 
   <footer class="fixed bottom-2 left-1/2 transform -translate-x-1/2 text-lg text-gray-500 select-none pointer-events-auto z-50">
     Designed/Developed by: 
     <a href="mailto:vpchaya@gmail.com" style="color: #0000FF;" class="underline hover:text-blue-700">
