@@ -1,0 +1,14 @@
+Flask
+Flask-Login
+#Flask-Mail
+psycopg2-binary
+python-dotenv
+bcrypt
+pandas
+pytz
+Pillow
+# deepface
+numpy
+werkzeug
+gunicorn
+requests
