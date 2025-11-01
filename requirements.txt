@@ -12,3 +12,4 @@ numpy
 werkzeug
 gunicorn
 requests
+openpyxl==3.0.10
