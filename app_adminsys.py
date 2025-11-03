@@ -887,52 +887,52 @@ def manage_contestants():
     society_name = session.get('society_name')
     conn = get_db()
     if not conn:
-        flash("Database connection error.", "danger") 
+        flash("Database connection error.", "danger")
         return render_template("manage_contestants.html", towers=[], households_by_tower_json='{}', contestants=[])
 
     if request.method == 'POST':
         try:
-            with conn:
+            with conn:  # Use conn as a context manager for automatic commit/rollback
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
                     action = request.form.get('action')
                     tower = request.form.get('tower')
                     flat = request.form.get('flat')
 
-                    if action == 'add': 
-                        contestant_name = request.form.get('contestant_name', '').strip() 
-                        symbol_file = request.files.get('contestant_symbol')
-                        photo_file = request.files.get('contestant_photo')
+                    if action == 'add':
+                        contestant_name = request.form.get('contestant_name', '').strip()
+                        symbol_file = request.files.get('contestant_symbol')  # Get symbol file
+                        photo_file = request.files.get('contestant_photo')  # Get photo file
                         
+                        # Validation: Ensure all required fields and files are provided
                         if not all([tower, flat, contestant_name]):
                             flash("Tower, Flat, and Contestant Name are required.", "danger")
                             return redirect(url_for('manage_contestants'))
 
-                        # Ensure both files are uploaded
                         if not symbol_file or not symbol_file.filename or not photo_file or not photo_file.filename:
                             flash("Contestant symbol and photo files are required.", "danger")
                             return redirect(url_for('manage_contestants'))
-                        
-                        # Base64 encode symbol file
-                        mime_type_symbol = symbol_file.mimetype or 'image/png'
+
+                        # Base64 Encode the symbol and photo files
+                        mime_type_symbol = symbol_file.mimetype or 'image/png'  # Default to PNG
                         encoded_string_symbol = base64.b64encode(symbol_file.read()).decode('utf-8')
                         symbol_b64_string = f"data:{mime_type_symbol};base64,{encoded_string_symbol}"
-                        
-                        # Base64 encode photo file
-                        mime_type_photo = photo_file.mimetype or 'image/jpeg'
+
+                        mime_type_photo = photo_file.mimetype or 'image/jpeg'  # Default to JPEG
                         encoded_string_photo = base64.b64encode(photo_file.read()).decode('utf-8')
                         photo_b64_string = f"data:{mime_type_photo};base64,{encoded_string_photo}"
-                        
-                        # Database update to store base64 data
+
+                        # Update contestant information in the database
                         cur.execute(
                             """
                             UPDATE households
                             SET is_contestant = 1, contestant_name = %s,
                                 contestant_symbol = %s, contestant_photo_b64 = %s
                             WHERE society_name = %s AND tower = %s AND flat = %s
-                            """, 
+                            """,
                             (contestant_name, symbol_b64_string, photo_b64_string, society_name, tower, flat)
                         )
 
+                        # Insert a new vote entry for the contestant if not already present
                         cur.execute(
                             """
                             INSERT INTO votes (society_name, tower, contestant_name, is_archived, vote_count)
@@ -945,6 +945,7 @@ def manage_contestants():
                         flash(f"Contestant '{contestant_name}' added successfully. Image data stored in columns.", "success")
 
                     elif action == 'remove':
+                        # Remove contestant information
                         cur.execute(
                             "SELECT contestant_name FROM households WHERE society_name = %s AND tower = %s AND flat = %s",
                             (society_name, tower, flat)
@@ -967,7 +968,7 @@ def manage_contestants():
                                 (society_name, contestant_to_remove['contestant_name'])
                             )
                             flash(f"Contestant '{contestant_to_remove['contestant_name']}' removed successfully.", "success")
-        
+
         except (Exception, psycopg2.DatabaseError) as e:
             conn.rollback()
             app.logger.error(f"Error managing contestants: {e}")
@@ -977,7 +978,7 @@ def manage_contestants():
 
         return redirect(url_for('manage_contestants'))
 
-    # --- GET Request ---
+    # GET request: Retrieve contestant data and households by tower
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
             cur.execute(
@@ -1020,8 +1021,7 @@ def manage_contestants():
     finally:
         if conn:
             conn.close()
-
-
+      
 @app.route('/view-results')
 @login_required
 def view_results():
