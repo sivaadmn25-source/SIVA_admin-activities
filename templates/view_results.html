@@ -493,13 +493,15 @@
                   <li class="result-item">
                     <div class="result-info">
                         {% if contestant.photo %}
-                            <img src="{{ url_for('uploaded_file', filename=contestant.photo) }}" alt="{{ contestant.name }} Photo" class="contestant-photo-display">
+                            <!-- ⭐ FIX: Use Base64 string directly as src, DO NOT use url_for('uploaded_file') ⭐ -->
+                            <img src="{{ contestant.photo }}" alt="{{ contestant.name }} Photo" class="contestant-photo-display">
                         {% endif %}
                         
                         <span>{{ contestant.name }}</span>
                     </div>
                     <div class="result-votes">
-                        <img src="{{ url_for('uploaded_file', filename=contestant.symbol) if contestant.symbol else url_for('static', filename='images/default_symbol.png') }}" alt="{{ contestant.name }} Symbol" class="contestant-symbol-display">
+                        <!-- ⭐ FIX: Use Base64 string directly as src, DO NOT use url_for('uploaded_file') ⭐ -->
+                        <img src="{{ contestant.symbol }}" alt="{{ contestant.name }} Symbol" class="contestant-symbol-display">
                         
                         <strong>Votes: {{ contestant.vote_count }}</strong>
                     </div>
