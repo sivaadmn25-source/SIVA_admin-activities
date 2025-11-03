@@ -25,7 +25,8 @@
       width: 100%;
       max-width: 600px; /* Standardized Ribbon Max Width */
       height: 60px; /* Standardized Ribbon Height */
-      background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%);
+      /*background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%);*/
+      background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #584df0 100%);
       position: fixed;
       top: 20px;
       left: 50%;
@@ -53,7 +54,7 @@
     
     /* Rainbow SIVA text aligned to match ribbon font */
     .ribbon .siva-text {
-        font-weight: 500;
+        font-weight: 800;
         font-size: 2.2rem;
         background: linear-gradient(270deg, gold, orange, yellow, green, blue, indigo, violet, gold);
         background-size: 400% 100%;
@@ -72,7 +73,7 @@
     }
 
 
-    /* Spinning Ashoka Chakra */
+    /* Spinning Ashoka Chakra 
     .chakra {
       width: 40px;
       height: 40px;
@@ -84,7 +85,7 @@
       from { transform: rotate(0deg); }
       to   { transform: rotate(360deg); }
     }
-
+    */
     .container {
       text-align: center;
       background: white;
@@ -146,7 +147,7 @@
 <body>
   <div class="ribbon">
     <h1>
-      <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <!--  <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <circle cx="50" cy="50" r="48" stroke="#0000FF" stroke-width="4" fill="none"/>
         <g stroke="#0000FF" stroke-width="2">
           <g transform="translate(50,50)">
@@ -159,7 +160,7 @@
             {% endfor %}
           </g>
         </g>
-      </svg>
+      </svg> -->
       System Entry <span class="siva-text">SIVA</span>
     </h1>
   </div>

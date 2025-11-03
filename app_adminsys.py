@@ -7,24 +7,15 @@ import psycopg2.extras
 import pandas as pd
 import pytz
 import base64
-from werkzeug.utils import secure_filename
+#from werkzeug.utils import secure_filename
 from functools import wraps
 from collections import defaultdict
 from datetime import datetime
 from dotenv import load_dotenv
 
 # --- INITIALIZATION ---
-load_dotenv()
-
-# --- CONFIGURATION ---
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'xlsx', 'xls'}
-
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+load_dotenv() 
+app = Flask(__name__) 
 app.secret_key = os.getenv("FLASK_SECRET_KEY", os.urandom(24))
 
 
@@ -89,12 +80,7 @@ def get_db():
     except psycopg2.OperationalError as e:
         app.logger.error(f"Error connecting to PostgreSQL database: {e}")
         return None
-
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-
+ 
 def generate_households_from_recipe(recipe_data):
     household_list = []
     society_name = recipe_data.get("society_name", "DEFAULT_SOCIETY")
@@ -443,13 +429,7 @@ def logout():
     flash("You have been logged out.", "info")
     return redirect(url_for("system_entry"))
 
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
-
-
-@app.after_request
+@app.after_request 
 def add_no_cache_headers(response):
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
@@ -907,29 +887,30 @@ def manage_contestants():
 
                     if action == 'add':
                         contestant_name = request.form.get('contestant_name', '').strip()
+                        # --- Retrieve files (required to be added) ---
                         symbol_file = request.files.get('contestant_symbol')
                         photo_file = request.files.get('contestant_photo')
-
+                        
                         if not all([tower, flat, contestant_name]):
                             flash("Tower, Flat, and Contestant Name are required.", "danger")
                             return redirect(url_for('manage_contestants'))
 
-                        if not symbol_file or symbol_file.filename == '':
-                            flash("Contestant symbol image is required.", "danger")
+                        # ⭐ CRITICAL VALIDATION: Ensure both files are present
+                        if not symbol_file or not symbol_file.filename or not photo_file or not photo_file.filename:
+                            flash("Contestant symbol and photo files are required.", "danger")
                             return redirect(url_for('manage_contestants'))
-
-                        symbol_path, photo_b64_string = None, None
-
-                        if symbol_file and allowed_file(symbol_file.filename):
-                            filename = secure_filename(f"{tower}_{flat}_{symbol_file.filename}")
-                            symbol_file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                            symbol_path = filename
-
-                        if photo_file and allowed_file(photo_file.filename):
-                            mime_type = photo_file.mimetype or 'image/jpeg'
-                            encoded_string = base64.b64encode(photo_file.read()).decode('utf-8')
-                            photo_b64_string = f"data:{mime_type};base64,{encoded_string}"
-
+                        
+                        # --- Base64 Encode Symbol (New logic, replacing file save) ---
+                        mime_type_symbol = symbol_file.mimetype or 'image/png' # Defaulting to PNG
+                        encoded_string_symbol = base64.b64encode(symbol_file.read()).decode('utf-8')
+                        symbol_b64_string = f"data:{mime_type_symbol};base64,{encoded_string_symbol}"
+                        
+                        # --- Base64 Encode Photo (Modified original logic) ---
+                        mime_type_photo = photo_file.mimetype or 'image/jpeg' # Defaulting to JPEG
+                        encoded_string_photo = base64.b64encode(photo_file.read()).decode('utf-8')
+                        photo_b64_string = f"data:{mime_type_photo};base64,{encoded_string_photo}"
+                        
+                        # --- Database Update ---
                         cur.execute(
                             """
                             UPDATE households
@@ -937,9 +918,10 @@ def manage_contestants():
                                 contestant_symbol = %s, contestant_photo_b64 = %s
                             WHERE society_name = %s AND tower = %s AND flat = %s
                             """,
-                            (contestant_name, symbol_path, photo_b64_string, society_name, tower, flat)
+                            # ⭐ UPDATED PARAMETERS: Both are Base64 strings now
+                            (contestant_name, symbol_b64_string, photo_b64_string, society_name, tower, flat)
                         )
-
+                        
                         cur.execute(
                             """
                             INSERT INTO votes (society_name, tower, contestant_name, is_archived, vote_count)
@@ -949,7 +931,7 @@ def manage_contestants():
                             (society_name, tower, contestant_name, 0)
                         )
 
-                        flash(f"Contestant '{contestant_name}' added successfully.", "success")
+                        flash(f"Contestant '{contestant_name}' added successfully. Image data stored in columns.", "success")
 
                     elif action == 'remove':
                         cur.execute(
@@ -1349,5 +1331,5 @@ if __name__ == '__main__':
     with app.app_context():
         # ensures the tables are setup and the system admin exists on startup
         # assuming the tables are properly defined elsewhere or via a schema migration
-    # The original file had two app.run() calls; keeping only the one that runs the application
+    # The original file had two app.run() calls; keeping only the ophoto_file = request.files.get('contestant_photo')ne that runs the application
      app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

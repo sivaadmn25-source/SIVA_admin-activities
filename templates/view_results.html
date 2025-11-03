@@ -48,6 +48,7 @@
       0%, 100% { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb; }
       50% { background-color: #dc3545; color: #fff; border-color: #c82333; }
     }
+    /*
     .chakra {
       width: 40px;
       height: 40px;
@@ -59,7 +60,7 @@
       from { transform: rotate(0deg); }
       to   { transform: rotate(360deg); }
     }
-
+    */
     .flash-alert.blink {
       animation: blink 0.6s step-start infinite;
     }
@@ -104,7 +105,8 @@
       max-width: 600px;
       /* ⭐ STANDARDIZATION: Ribbon Height (60px) ⭐ */
       height: 60px; 
-      background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%);
+      /*background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%); */
+      background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #584df0 100%);
       position: fixed;
       top: 20px;
       left: 50%;
@@ -132,7 +134,7 @@
 
     /* Rainbow SIVA text aligned to match ribbon font (Added/Standardized) */
     .ribbon .siva-text {
-        font-weight: 500;
+        font-weight: 800;
         font-size: 2.2rem;
         background: linear-gradient(270deg, gold, orange, yellow, green, blue, indigo, violet, gold);
         background-size: 400% 100%;
@@ -435,7 +437,7 @@
 
   <div class="ribbon">
     <h1>
-        <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <!--  <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
           <circle cx="50" cy="50" r="48" stroke="#0000FF" stroke-width="4" fill="none"/>
           <g stroke="#0000FF" stroke-width="2">
             <g transform="translate(50,50)">
@@ -448,7 +450,7 @@
               {% endfor %}
             </g>
           </g>
-        </svg>
+        </svg> -->
     {% if voting_status == 'CLOSED' %}
       Final Election Results - <span class="siva-text">SIVA</span>
     {% else %}

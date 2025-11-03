@@ -41,7 +41,8 @@
             width: 100%; 
             max-width: 600px; 
             height: 60px; /* Standardized Height */
-            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%); 
+            /*background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%); */
+            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #584df0 100%);
             position: fixed; 
             top: 20px; 
             left: 50%; 
@@ -65,12 +66,12 @@
             line-height: 1; 
             text-decoration: none; 
         }
-        .chakra { width: 45px; height: 45px; display: inline-block; vertical-align: middle; animation: spinChakra 10s linear infinite; transform-origin: 50% 50%; }
+        /* .chakra { width: 45px; height: 45px; display: inline-block; vertical-align: middle; animation: spinChakra 10s linear infinite; transform-origin: 50% 50%; }
         @keyframes spinChakra { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        
+        */
         /* Rainbow SIVA text */
         .ribbon .siva-text {
-            font-weight: 500;
+            font-weight: 800;
             font-size: 2.2rem;
             background: linear-gradient(270deg, gold, orange, yellow, green, blue, indigo, violet, gold);
             background-size: 400% 100%;
@@ -136,7 +137,7 @@
 
     <div class="ribbon" aria-hidden="true">
         <h1>
-            <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <!--    <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                 <circle cx="50" cy="50" r="48" stroke="#0000FF" stroke-width="4" fill="none"/>
                 <g stroke="#0000FF" stroke-width="2">
                     <g transform="translate(50,50)">
@@ -149,7 +150,7 @@
                         {% endfor %}
                     </g>
                 </g>
-            </svg>
+            </svg> -->
             Home Management System <span class="siva-text">SIVA</span>
         </h1>
     </div>
