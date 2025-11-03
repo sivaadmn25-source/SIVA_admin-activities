@@ -8,12 +8,13 @@ import pandas as pd
 import pytz
 import base64
 #from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash # ⭐ ADDED: For password/code hashing
+from werkzeug.security import generate_password_hash, check_password_hash 
 from functools import wraps
 from collections import defaultdict
 from datetime import datetime
 from dotenv import load_dotenv
 import secrets
+from io import BytesIO
  
 # --- INITIALIZATION ---
 load_dotenv() 
@@ -83,10 +84,48 @@ def get_db():
         app.logger.error(f"Error connecting to PostgreSQL database: {e}")
         return None
  
-def generate_secret_code(length=8):
-    """Generates a random, strong alphanumeric secret code."""
-    characters = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(characters) for _ in range(length))
+def generate_secret_code(length=6):
+    """Generates a random 6-digit secret code and its hash."""
+    # Ensure the code is 6 digits long
+    raw_code = ''.join(secrets.choice(string.digits) for _ in range(length))
+    # Hash the code for database storage
+    hashed_code = generate_password_hash(raw_code)
+    # This function MUST return exactly 2 values to prevent the ValueError
+    return raw_code, hashed_code
+
+def send_codes_excel_response(code_data, society_name):
+    """
+    Takes a list of household code data, creates an Excel file, and returns 
+    a Flask response for immediate download.
+    """
+    try:
+        df = pd.DataFrame(code_data)
+        
+        # Use io.BytesIO to keep the file in memory
+        output = io.BytesIO()
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        
+        # Write the DataFrame to the in-memory buffer
+        df.to_excel(writer, sheet_name='Secret Codes', index=False)
+        
+        writer.close() # Important: Use writer.close()
+        output.seek(0)
+        
+        # Prepare the response
+        date_str = datetime.now().strftime("%Y%m%d_%H%M")
+        filename = f"Secret_Codes_{society_name}_{date_str}.xlsx"
+        
+        response = make_response(output.read())
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+        
+    except Exception as e:
+        app.logger.error(f"Error generating Excel report: {e}")
+        # Fallback if file generation fails
+        flash(f"Error generating secret code report (functional save was successful): {e}", "warning")
+        return redirect(url_for('home_management'))
 
 def generate_households_from_recipe(recipe_data):
     household_list = []
@@ -447,11 +486,13 @@ def add_no_cache_headers(response):
     response.headers['Expires'] = '0'
     return response
 
+@app.route('/uploads/<filename>')
+def uploaded_file(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
 @app.route('/home-management', methods=['GET', 'POST'])
 @login_required
-def home_management():
-    # NOTE: This function assumes 'generate_secret_code()' is defined elsewhere and returns a hash.
-    
+def home_management(): 
     society_name = session.get('society_name')
     housing_type = session.get('housing_type')
 
@@ -472,6 +513,7 @@ def home_management():
         try:
             housing_type_submitted = request.form.get("housing_type")
 
+            # --- Type determination logic ---
             if housing_type_submitted.startswith("Apartment"):
                 community_type_for_recipe = "apartment"
             elif housing_type_submitted.startswith("Villas"):
@@ -487,10 +529,7 @@ def home_management():
                 "society_name": society_name
             }
 
-            # -----------------------------------------------
-            # ⭐ Input Processing Logic (Manual or Upload) ⭐
-            # -----------------------------------------------
-            
+            # --- DUAL INPUT PROCESSING LOGIC (Unchanged) ---
             if action == 'upload':
                 config_file = request.files.get('config_file')
                 if not config_file or not config_file.filename:
@@ -525,8 +564,7 @@ def home_management():
                         })
                     recipe_to_save["apartment"] = {"towers": towers_list}
 
-                elif community_type_for_recipe in ("individual", "civil"):
-                    # Check if Lane column exists for Villas-Lanes type
+                elif community_type_for_recipe in ("individual", "civil"): 
                     if community_type_for_recipe == "individual" and 'Lane' in df[0]:
                         lanes_list = []
                         for row in df:
@@ -537,15 +575,14 @@ def home_management():
                                 "remove": row.get('Remove_Houses', '')
                             })
                         recipe_to_save["individual"] = {"has_lane": True, "lanes": lanes_list}
-                    else: # No Lanes / Civil
+                    else:
                         house_numbers_raw = df[0].get('House_Numbers_Raw', '') if df else ''
                         recipe_to_save["individual"] = {
                             "has_lane": False,
                             "house_numbers": {"numbers_raw": house_numbers_raw}
                         }
 
-            # --- MANUAL FORM SUBMISSION (Original logic integrated here) ---
-            elif action == 'manual':
+            elif action == 'manual': 
                 if community_type_for_recipe == "apartment":
                     recipe_to_save["apartment"] = {"towers": []}
                     tower_indices = sorted(list(set(
@@ -568,9 +605,7 @@ def home_management():
                         recipe_to_save["apartment"]["towers"].append(tower_data)
 
                 elif community_type_for_recipe in ("individual", "civil"):
-                    # Determine has_lane based on housing_type or explicit form input
-                    has_lane = (housing_type_submitted.strip() == "Villas-Lanes")
-                    
+                    has_lane = (housing_type_submitted.strip() == "Villas-Lanes") 
                     recipe_to_save["individual"] = {"has_lane": has_lane}
 
                     if has_lane:
@@ -591,33 +626,90 @@ def home_management():
                             "numbers_raw": request.form.get('houses_no_lane', '')
                         }
             
-            # --- End Dual Input Processing ---
-
-            # --- Database Operations (Common to both manual and upload) ---
+            # 1. Generate the master list of (society_name, tower, flat) tuples from the recipe
             final_household_list = generate_households_from_recipe(recipe_to_save)
+            
+            # 2. Get existing households and their secret codes (hashes)
+            existing_houses = {}
+            with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                cur.execute(
+                    "SELECT tower, flat, secret_code FROM households WHERE society_name = %s", 
+                    (society_name,)
+                )
+                # Store existing houses as a key for fast lookup: (tower, flat) -> secret_code (hash)
+                existing_houses = {
+                    (h['tower'], h['flat']): h.get('secret_code') 
+                    for h in cur.fetchall()
+                }
 
-            # ⭐ HASHING FIX: Prepare the list for insertion including the HASHED secret code
+            # 3. Prepare the list of values for UPSERT with secret codes AND prepare the report
             insert_values = []
-            for society, tower, flat in final_household_list:
-                # Generate and hash a NEW secret code for EVERY record (Wipes old status, requires re-distro)
-                hashed_code = generate_secret_code() 
-                insert_values.append((society, tower, flat, hashed_code))
+            secret_code_report = [] # Initialize report list for raw codes
+            new_house_keys = set()
+            
+            for society_name_item, tower, flat in final_household_list:
+                house_key = (tower, flat)
+                new_house_keys.add(house_key) 
                 
-            with conn.cursor() as cur:
-                # Step 1: DELETE ALL existing households for this society (as per existing logic)
-                cur.execute("DELETE FROM households WHERE society_name = %s;", (society_name,))
+                hashed_code_for_db = None
+                raw_code_for_report = None
+                is_new_code = False
+                
+                if house_key in existing_houses and existing_houses[house_key]:
+                    # Existing house with a code: use the old secret code (which is the hash)
+                    hashed_code_for_db = existing_houses[house_key]
+                else:
+                    # NEW CODE GENERATION: New house OR existing house missing a code
+                    # NOTE: generate_secret_code() must return (raw_code, hashed_code)
+                    raw_code_for_report, hashed_code_for_db = generate_secret_code()
+                    is_new_code = True
 
-                # Step 2: INSERT new households with the SECURE HASH
+                # Only report the raw code if it was newly generated
+                if is_new_code:
+                    secret_code_report.append({
+                        "Tower/Lane": tower,
+                        "Flat/House No.": flat,
+                        "Mobile Number": "", # Placeholder
+                        "Secret Code": raw_code_for_report 
+                    })
+                    
+                # Item for DB is: (society_name, tower, flat, hashed_code, mobile_number_placeholder)
+                insert_values.append((society_name_item, tower, flat, hashed_code_for_db, '')) # mobile_number added
+            
+            # 4. Execute the UPSERT: Insert new houses and ignore conflicts on existing ones
+            with conn.cursor() as cur:
                 if insert_values:
                     psycopg2.extras.execute_values(
                         cur,
-                        "INSERT INTO households (society_name, tower, flat, secret_code) VALUES %s",
+                        """
+                        INSERT INTO households (society_name, tower, flat, secret_code, mobile_number) 
+                        VALUES %s
+                        ON CONFLICT (society_name, tower, flat) DO UPDATE SET mobile_number = EXCLUDED.mobile_number 
+                        """, 
                         insert_values,
-                        template="(%s, %s, %s, %s)",
+                        template="(%s, %s, %s, %s, %s)", # Template updated to 5 values
                         page_size=1000
                     )
-
-                # Step 3: Save the recipe data
+                
+                # 5. Delete removed households 
+                old_house_keys = set(existing_houses.keys())
+                removed_house_keys = old_house_keys - new_house_keys
+                
+                if removed_house_keys:
+                    delete_params = [(society_name, t, f) for t, f in removed_house_keys]
+                    
+                    psycopg2.extras.execute_values(
+                        cur,
+                        """
+                        DELETE FROM households 
+                        WHERE society_name = %s AND tower = %s AND flat = %s
+                        """,
+                        delete_params,
+                        template="(%s, %s, %s)",
+                        page_size=1000
+                    )
+                
+                # 6. Save the Recipe JSON
                 cur.execute(
                     """
                     INSERT INTO home_data (society_name, data) VALUES (%s, %s)
@@ -627,21 +719,31 @@ def home_management():
                 )
 
                 conn.commit()
-                flash(f"Home configuration for {society_name} saved. {len(final_household_list)} households created/updated with new secret codes.", "success")
             
+
+            # 7. CRITICAL STEP: Generate and send Excel report (Download) 
+            # If any new secret codes were generated, send the Excel file.
+            if secret_code_report:
+                flash(f"Home configuration for {society_name} saved. {len(final_household_list)} households configured. Download the Excel report with **{len(secret_code_report)} NEW** secret codes now.", "success")
+                return send_codes_excel_response(secret_code_report, society_name)
+            
+            # Success/Fallback for when no new codes were generated
+            flash(f"Home configuration for {society_name} saved. {len(final_household_list)} households configured. No new secret codes were generated.", "success")
+            return redirect(url_for('home_management')) 
+
         except (Exception, psycopg2.DatabaseError) as e:
             if conn:
                 conn.rollback()
-            app.logger.error(f"Error in home_management POST: {e}")
+            app.logger.error(f"Error in home_management POST: {e}") 
             flash(f"An error occurred while saving: {e}", "danger")
         finally:
             if conn:
                 conn.close()
-        
+          
         return redirect(url_for('home_management')) 
 
 
-    # --- GET REQUEST HANDLING (Data Retrieval) ---
+    # --- GET REQUEST HANDLING (Data Retrieval) --- (Unchanged)
     recipe_data = {}
     conn = None 
     try:
