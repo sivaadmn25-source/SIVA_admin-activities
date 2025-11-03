@@ -892,7 +892,7 @@ def manage_contestants():
 
     if request.method == 'POST':
         try:
-            with conn:
+            with conn:  # Use conn as a context manager for automatic commit/rollback
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
                     action = request.form.get('action')
                     tower = request.form.get('tower')
@@ -900,9 +900,10 @@ def manage_contestants():
 
                     if action == 'add':
                         contestant_name = request.form.get('contestant_name', '').strip()
-                        # ⭐ FIX: Update keys to match HTML input names
-                        symbol_file = request.files.get('contestant_symbol_data')  # Get symbol file
-                        photo_file = request.files.get('contestant_photo_data')  # Get photo file
+                        
+                        # FIX: Using correct keys from HTML
+                        symbol_file = request.files.get('contestant_symbol_data')
+                        photo_file = request.files.get('contestant_photo_data')
                         
                         # Validation: Ensure all required fields and files are provided
                         if not all([tower, flat, contestant_name]):
@@ -913,12 +914,23 @@ def manage_contestants():
                             flash("Contestant symbol and photo files are required.", "danger")
                             return redirect(url_for('manage_contestants'))
 
-                        # Base64 Encode the symbol and photo files
-                        mime_type_symbol = symbol_file.mimetype or 'image/png'  # Default to PNG
+                        # ⭐ NEW LOGIC START: MIME Type Restriction ⭐
+                        ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
+                        
+                        # Determine MIME types (with fallback)
+                        mime_type_symbol = symbol_file.mimetype or 'image/png'
+                        mime_type_photo = photo_file.mimetype or 'image/jpeg' 
+                        
+                        # Check if determined types are in the allowed list
+                        if mime_type_symbol not in ALLOWED_MIME_TYPES or mime_type_photo not in ALLOWED_MIME_TYPES:
+                            flash("Contestant symbol and photo must be a valid image file (JPEG, PNG, GIF, SVG, WEBP).", "danger")
+                            return redirect(url_for('manage_contestants'))
+                        # ⭐ NEW LOGIC END ⭐
+
+                        # Base64 Encode the symbol and photo files 
                         encoded_string_symbol = base64.b64encode(symbol_file.read()).decode('utf-8')
                         symbol_b64_string = f"data:{mime_type_symbol};base64,{encoded_string_symbol}"
-
-                        mime_type_photo = photo_file.mimetype or 'image/jpeg'  # Default to JPEG
+ 
                         encoded_string_photo = base64.b64encode(photo_file.read()).decode('utf-8')
                         photo_b64_string = f"data:{mime_type_photo};base64,{encoded_string_photo}"
 
