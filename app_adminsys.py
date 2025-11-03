@@ -7,14 +7,14 @@ import psycopg2.extras
 import pandas as pd
 import pytz
 import base64
-#from werkzeug.utils import secure_filename
-from werkzeug.security import generate_password_hash, check_password_hash 
+from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash # Required for code hashing
 from functools import wraps
 from collections import defaultdict
 from datetime import datetime
+from io import BytesIO # Critical for Excel file generation (in-memory buffer)
 from dotenv import load_dotenv
-import secrets
-from io import BytesIO
+import secrets 
 import string
  
 # --- INITIALIZATION ---
