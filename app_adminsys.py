@@ -1,6 +1,7 @@
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory, make_response
 import os
+import io
 import json
 import psycopg2
 import psycopg2.extras
