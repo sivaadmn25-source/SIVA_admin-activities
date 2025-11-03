@@ -892,7 +892,7 @@ def manage_contestants():
 
     if request.method == 'POST':
         try:
-            with conn:  # Use conn as a context manager for automatic commit/rollback
+            with conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
                     action = request.form.get('action')
                     tower = request.form.get('tower')
@@ -900,8 +900,9 @@ def manage_contestants():
 
                     if action == 'add':
                         contestant_name = request.form.get('contestant_name', '').strip()
-                        symbol_file = request.files.get('contestant_symbol')  # Get symbol file
-                        photo_file = request.files.get('contestant_photo')  # Get photo file
+                        # ⭐ FIX: Update keys to match HTML input names
+                        symbol_file = request.files.get('contestant_symbol_data')  # Get symbol file
+                        photo_file = request.files.get('contestant_photo_data')  # Get photo file
                         
                         # Validation: Ensure all required fields and files are provided
                         if not all([tower, flat, contestant_name]):
@@ -913,11 +914,11 @@ def manage_contestants():
                             return redirect(url_for('manage_contestants'))
 
                         # Base64 Encode the symbol and photo files
-                        mime_type_symbol = symbol_file.mimetype or 'image/png'  # Default to PNG
+                        mime_type_symbol = symbol_file.mimetype or 'image/png'  # Default to PNG
                         encoded_string_symbol = base64.b64encode(symbol_file.read()).decode('utf-8')
                         symbol_b64_string = f"data:{mime_type_symbol};base64,{encoded_string_symbol}"
 
-                        mime_type_photo = photo_file.mimetype or 'image/jpeg'  # Default to JPEG
+                        mime_type_photo = photo_file.mimetype or 'image/jpeg'  # Default to JPEG
                         encoded_string_photo = base64.b64encode(photo_file.read()).decode('utf-8')
                         photo_b64_string = f"data:{mime_type_photo};base64,{encoded_string_photo}"
 
@@ -1021,7 +1022,7 @@ def manage_contestants():
     finally:
         if conn:
             conn.close()
-      
+
 @app.route('/view-results')
 @login_required
 def view_results():
