@@ -324,8 +324,8 @@
                     </div>
 
                     <div class="form-group" style="flex: 1.5;">
-                        <label for="contestant_symbol">Contestant Symbol:</label>
-                        <input type="file" name="contestant_symbol" id="contestant_symbol" accept="image/*" required>
+                        <label for="contestant_symbol_data">Contestant Symbol (URL/Base64):</label>
+                        <input type="text" name="contestant_symbol_data" id="contestant_symbol_data" required>
                     </div>
 
                     <div class="form-group" style="flex: 1.5;">
@@ -365,7 +365,7 @@
                             </td>
                             <td class="contestant-symbol">
                                 {% if c.contestant_symbol %}
-                                    <img src="{{ url_for('uploaded_file', filename=c.contestant_symbol) }}" alt="Symbol">
+                                    <img src="{{ c.contestant_symbol }}" alt="Symbol">
                                 {% else %} N/A {% endif %}
                             </td>
                             <td>
