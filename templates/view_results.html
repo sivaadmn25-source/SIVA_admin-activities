@@ -493,7 +493,7 @@
                   <li class="result-item">
                     <div class="result-info">
                         {% if contestant.photo %}
-                            <img src="{{ contestant.photo }}" alt="{{ contestant.name }} Photo" class="contestant-photo-display">
+                            <img src="{{ url_for('uploaded_file', filename=contestant.photo) }}" alt="{{ contestant.name }} Photo" class="contestant-photo-display">
                         {% endif %}
                         
                         <span>{{ contestant.name }}</span>
