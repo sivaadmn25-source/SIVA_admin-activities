@@ -23,8 +23,8 @@
         h1 { font-weight: 700; font-size: 2.4rem; margin-bottom: 1rem; color: #34495e; text-align: center; }
         h2 { font-weight: 600; font-size: 1.6rem; margin-bottom: 0.6rem; color: #34495e; border-bottom: 2px solid #3498db; padding-bottom: 6px; }
         label { display: block; font-weight: 600; margin-bottom: 6px; margin-top: 10px; color: #34495e; }
-        input[type="text"], input[type="number"], select { width: 100%; padding: 10px 12px; border: 1.8px solid #bdc3c7; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s ease; }
-        input[type="text"]:focus, input[type="number"]:focus, select:focus { border-color: #2980b9; outline: none; box-shadow: 0 0 5px #2980b9aa; }
+        input[type="text"], input[type="number"], select, textarea { width: 100%; padding: 10px 12px; border: 1.8px solid #bdc3c7; border-radius: 8px; font-size: 1rem; transition: border-color 0.2s ease; }
+        input[type="text"]:focus, input[type="number"]:focus, select:focus, textarea:focus { border-color: #2980b9; outline: none; box-shadow: 0 0 5px #2980b9aa; }
         button { 
             cursor: pointer; font-weight: 700; font-size: 1rem; padding: 12px 24px; 
             margin-top: 15px; border: none; border-radius: 30px; background: #2980b9; color: white; box-shadow: 0 4px 10px #2980b9aa; transition: all 0.3s ease; 
@@ -41,7 +41,6 @@
             width: 100%; 
             max-width: 600px; 
             height: 60px; /* Standardized Height */
-            /*background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%); */
             background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #584df0 100%);
             position: fixed; 
             top: 20px; 
@@ -66,9 +65,6 @@
             line-height: 1; 
             text-decoration: none; 
         }
-        /* .chakra { width: 45px; height: 45px; display: inline-block; vertical-align: middle; animation: spinChakra 10s linear infinite; transform-origin: 50% 50%; }
-        @keyframes spinChakra { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        */
         /* Rainbow SIVA text */
         .ribbon .siva-text {
             font-weight: 800;
@@ -89,7 +85,19 @@
         }
         
         .item-card { background: white; border: 1px solid #3498db; border-radius: 8px; padding: 15px 20px; box-shadow: 0 0 10px #2980b9aa; position: relative; display: flex; flex-direction: column; }
-        #towersContainer, #lanesMatrix { display: flex; gap: 15px; overflow-x: auto; padding: 15px; background: #f5f7fa; border-radius: 8px; min-height: 200px; align-items: flex-start; }
+        
+        /* IMPORTANT FIX: These styles enable the horizontal scroll for dynamic cards */
+        #towersContainer, #lanesMatrix { 
+            display: flex; 
+            gap: 15px; 
+            overflow-x: auto; 
+            padding: 15px; 
+            background: #f5f7fa; 
+            border-radius: 8px; 
+            min-height: 200px; 
+            align-items: flex-start; 
+        }
+
         .back-button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background-color: #2ecc71; color: white; border: none; border-radius: 30px; font-size: 1rem; font-weight: 700; cursor: pointer; margin-top: 20px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); text-decoration: none; }
         .back-button:hover { background-color: #27ae60; }
         .back-button svg { width: 18px; height: 18px; fill: white; transform: rotate(180deg); }
@@ -120,7 +128,7 @@
             font-family: monospace;
         }
         
-        /* ⭐ NEW FIX: Disabled Button Appearance ⭐ */
+        /* ⭐ FIX: Disabled Button Appearance ⭐ */
         #uploadSubmitBtn:disabled {
             background-color: #ccc !important; 
             cursor: not-allowed; 
@@ -131,26 +139,23 @@
         #uploadSubmitBtn:hover:disabled {
             background-color: #ccc !important;
         }
+
+        /* Styling for the radio button group */
+        #configModeSelector label {
+            display: inline-block;
+            font-weight: 400;
+            margin-top: 0;
+            margin-right: 15px;
+        }
+        #configModeSelector input[type="radio"] {
+            margin-right: 5px;
+        }
     </style>
 </head>
 <body>
 
     <div class="ribbon" aria-hidden="true">
         <h1>
-        <!--    <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="50" cy="50" r="48" stroke="#0000FF" stroke-width="4" fill="none"/>
-                <g stroke="#0000FF" stroke-width="2">
-                    <g transform="translate(50,50)">
-                        <circle r="3" fill="#0000FF"/>
-                        <defs>
-                            <line id="spoke" y1="3" y2="-47"/>
-                        </defs>
-                        {% for i in range(0,360,15) %}
-                        <use href="#spoke" transform="rotate({{ i }})"/>
-                        {% endfor %}
-                    </g>
-                </g>
-            </svg> -->
             Home Management System <span class="siva-text">SIVA</span>
         </h1>
     </div>
@@ -163,6 +168,7 @@
     </a>
 
     <form id="homeManagementForm" method="POST" action="{{ url_for('home_management') }}" enctype="multipart/form-data">
+        
         <div>
             <label for="societyName">Society Name:</label>
             <input type="text" id="societyName" name="society_name" 
@@ -178,11 +184,18 @@
             style="text-transform: uppercase;">
         <input type="hidden" id="housingType" name="housing_type" 
             value="{{ session.get('housing_type') }}">
-
-        <div id="uploadSection" class="section">
+        
+        <div id="configModeSelector" class="section">
+            <h2>Configuration Method</h2>
+            <p style="font-size: 0.9em; color: #34495e;">Select how you wish to configure the households.</p>
+            <label><input type="radio" name="config_mode" value="manual" checked> Manual Configuration</label>
+            <label style="margin-left: 20px;"><input type="radio" name="config_mode" value="upload"> Upload from Excel</label>
+        </div>
+        
+        <div id="uploadSection" class="section" style="display:none;">
             <h2>Upload Configuration from Excel</h2>
             <p style="font-size: 0.9em; color: #2804f1; text-align: left;">
-                You can upload a sheet or fill online to define all households. Below is the **required structure** (Template 1st Line) and a sample of the data needed for your community type. 
+                You can upload a sheet to define all households. Below is the **required structure** (Template 1st Line) and a sample of the data needed for your community type. 
                 **Note:** This action will **overwrite** the current configuration.
             </p>
 
@@ -223,34 +236,33 @@
 
             <input type="file" name="config_file" id="configFileInput" accept=".xlsx, .xls, .csv" style="padding: 12px;" />
         </div>
+        
         <div id="apartmentSection" class="section" style="display:none;">
-            <h2>Apartment Configuration</h2>
-            <div id="towersContainer"></div>
+            <h2>Apartment Configuration (Manual)</h2>
+            <div id="towersContainer"></div> 
             <div class="add-btn-container">
                 <button type="button" id="addTowerBtn">Add Tower</button>
             </div>
         </div>
 
         <div id="individualSection" class="section" style="display:none;">
-            <h2>Individual Home Configuration</h2>
-
-            <div id="laneChoiceContainer" style="display:none;">
-                <label><input type="radio" name="individual_has_lane" value="yes"> Homes with Lane</label>
-                <label style="margin-left: 20px;"><input type="radio" name="individual_has_lane" value="no"> Homes without Lane</label>
-            </div>
-
+            <h2>Individual Home Configuration (Manual)</h2>
+            
             <div id="lanesContainerDiv" style="display:none;">
+                <p class="text-info" style="font-size: 0.9em; color: #34495e;">Use the horizontal scrollbar below to view and edit lanes.</p>
                 <div id="lanesMatrix"></div>
                 <div class="add-btn-container"><button type="button" id="addLaneBtn">Add Lane</button></div>
             </div>
 
             <div id="noLaneContainer" style="display:none;">
                 <label for="houses_no_lane">Enter House Numbers (ranges or comma-separated):</label>
-                <input type="text" name="houses_no_lane" id="houses_no_lane" placeholder="e.g. 1-10,15,20" />
+                <textarea name="houses_no_lane" id="houses_no_lane" placeholder="e.g. 1-10,15,20" rows="5"></textarea>
             </div>
         </div>
 
-        <div style="text-align: center;"><button type="submit" name="action" value="manual">Save Configuration</button></div>
+        <div style="text-align: center;">
+            <button type="submit" name="action" value="manual" id="manualSubmitBtn" style="display:none;">Save Configuration</button>
+        </div>
     
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
@@ -281,7 +293,12 @@
         <a href="mailto:siva.admn25@gmail.com" class="underline hover:text-blue-700">siva.admn25@gmail.com</a>
     </footer>
 
-    <script>
+<script>
+    // Ensure 'recipe' variable is defined from Flask context
+    const recipe = {{ recipe|tojson }};
+</script>
+
+<script>
     document.addEventListener('DOMContentLoaded', function() {
         const housingType = document.getElementById('housingType').value;
         const apartmentSection = document.getElementById('apartmentSection');
@@ -290,15 +307,17 @@
         const towersContainer = document.getElementById('towersContainer');
         const addLaneBtn = document.getElementById('addLaneBtn');
         const lanesContainerDiv = document.getElementById('lanesContainerDiv');
+        const lanesMatrix = document.getElementById('lanesMatrix');
         const noLaneContainer = document.getElementById('noLaneContainer');
         const downloadTemplateBtn = document.getElementById('downloadTemplateBtn'); 
         const uploadSection = document.getElementById('uploadSection'); 
         const configFileInput = document.getElementById('configFileInput'); 
         const uploadSubmitBtn = document.getElementById('uploadSubmitBtn'); 
+        const manualSubmitBtn = document.getElementById('manualSubmitBtn');
+        
+        const configModeRadios = document.querySelectorAll('input[name="config_mode"]');
 
-        const recipe = {{ recipe|tojson }};
-
-        // --- Template Download Logic ---
+        // --- Template Download Logic (Kept as is) ---
         function generateApartmentTemplate() {
             return "Tower,Start_Flat,End_Flat,Start_Series,End_Series,Missing_Series,Additional_Flats,Remove_Flats\nA,1,4,1,5,3,105,402";
         }
@@ -345,7 +364,7 @@
             downloadTemplate(filename, templateData);
         });
 
-        // --- Conditional Button Activation FIX ---
+        // --- Conditional Button Activation FIX (Kept as is) ---
         configFileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
                 uploadSubmitBtn.disabled = false;
@@ -357,7 +376,7 @@
             }
         });
 
-        // --- Form Submission Validation (Prevents file requirement for manual save) ---
+        // --- Form Submission Validation (Kept as is, relies on submitter action) ---
         document.getElementById('homeManagementForm').addEventListener('submit', function(e) {
             // Find the submitter button's value (manual or upload)
             const action = e.submitter ? e.submitter.value : null;
@@ -369,41 +388,16 @@
                     return false;
                 }
             }
-            // Manual save action proceeds normally without file requirement
         });
 
 
-        // --- Dynamic Form Display ---
-        if (housingType.startsWith("Apartment")) {
-            apartmentSection.style.display = 'block';
-            uploadSection.style.display = 'block';
-            downloadTemplateBtn.textContent = "Download Apartment Template";
-        } else if (housingType.startsWith("Villas")) {
-            individualSection.style.display = 'block';
-            uploadSection.style.display = 'block';
-            if (housingType === "Villas-Lanes") {
-                lanesContainerDiv.style.display = 'block';
-                downloadTemplateBtn.textContent = "Download Villas (Lanes) Template";
-            } else if (housingType === "Villas-No Lanes") {
-                noLaneContainer.style.display = 'block';
-                downloadTemplateBtn.textContent = "Download Villas (No Lanes) Template";
-            }
-        } else if (housingType.startsWith("Civil")) {
-            individualSection.style.display = 'block';
-            uploadSection.style.display = 'block';
-            noLaneContainer.style.display = 'block';
-            downloadTemplateBtn.textContent = "Download Civil Template";
-        } else {
-            uploadSection.style.display = 'none';
-        }
-
-
-        // ---------- Helpers (Your existing functions) ----------
+        // ---------- Helpers (Original functions) ----------
         function createTowerCard(index, towerData={}) {
             const div = document.createElement('div');
             div.className = 'item-card';
-            div.innerHTML = `
-                <button type="button" class="remove-btn" title="Remove Tower">&times;</button>
+            div.style.width = '280px'; // Added for better horizontal scroll layout
+            div.style.flexShrink = '0'; // Prevent shrinking
+            div.innerHTML = `<button type="button" class="remove-btn" title="Remove Tower">&times;</button>
                 <label>Tower Name: <input type="text" name="towers[${index}][name]" placeholder="A" style="text-transform:uppercase" value="${towerData.name||''}" ${housingType === "Apartment-Single Tower" ? "" : "required"}></label>
                 <label>Start Flat No: <input type="number" name="towers[${index}][start_flat]" required value="${towerData.start_flat||''}"></label>
                 <label>End Flat No: <input type="number" name="towers[${index}][end_flat]" required value="${towerData.end_flat||''}"></label>
@@ -411,70 +405,150 @@
                 <label>End Series (floor): <input type="number" name="towers[${index}][end_series]" required value="${towerData.end_series||''}"></label>
                 <label>Missing Series (comma-sep): <input type="text" name="towers[${index}][missing_series]" placeholder="e.g. 3,5" value="${towerData.missing_series||''}"></label>
                 <label>Additional Flats (comma-sep): <input type="text" name="towers[${index}][additional_flats]" placeholder="e.g. 102,105" value="${towerData.additional_flats||''}"></label>
-                <label>Remove Flats (comma-sep): <input type="text" name="towers[${index}][remove_flats]" placeholder="e.g. 109,110" value="${towerData.remove_flats||''}"></label>
-            `;
+                <label>Remove Flats (comma-sep): <input type="text" name="towers[${index}][remove_flats]" placeholder="e.g. 109,110" value="${towerData.remove_flats||''}"></label>`;
             div.querySelector('.remove-btn').addEventListener('click', () => div.remove());
             towersContainer.appendChild(div);
+            return div;
         }
 
         function createLaneCard(index, laneData={}) {
             const laneCol = document.createElement('div');
             laneCol.className = 'item-card';
-            laneCol.innerHTML = `
-                <button type="button" class="remove-btn" title="Remove Lane">&times;</button>
+            laneCol.style.width = '280px'; // Added for better horizontal scroll layout
+            laneCol.style.flexShrink = '0'; // Prevent shrinking
+            laneCol.innerHTML = `<button type="button" class="remove-btn" title="Remove Lane">&times;</button>
                 <label>Lane Name: <input type="text" name="lanes[${index}][name]" required value="${laneData.name||''}"></label>
                 <label>Base House Numbers: <input type="text" name="lanes[${index}][base]" required placeholder="e.g. 1-10,15,18" value="${laneData.base||''}"></label>
                 <label>Additional Houses: <input type="text" name="lanes[${index}][additional]" placeholder="e.g. 20,22" value="${laneData.additional||''}"></label>
-                <label>Remove Houses: <input type="text" name="lanes[${index}][remove]" placeholder="e.g. 5,7" value="${laneData.remove||''}"></label>
-            `;
+                <label>Remove Houses: <input type="text" name="lanes[${index}][remove]" placeholder="e.g. 5,7" value="${laneData.remove||''}"></label>`;
             laneCol.querySelector('.remove-btn').addEventListener('click', () => laneCol.remove());
-            document.getElementById('lanesMatrix').appendChild(laneCol);
+            lanesMatrix.appendChild(laneCol);
+            return laneCol;
         }
+        
+        // ---------- Manual Form Population Logic (Corrected) ----------
+        function setupManualForm(recipeData) {
+            // Clear current cards/inputs before rendering existing data
+            towersContainer.innerHTML = '';
+            lanesMatrix.innerHTML = '';
+            // Ensure noLaneContainer inputs are cleared for non-Villas-No Lanes type
+            document.getElementById('houses_no_lane').value = ''; 
 
-        // ---------- Populate form elements (Original Logic) ----------
-        if (housingType.startsWith("Apartment")) {
-            addTowerBtn.disabled = false;
-            if (recipe.apartment && recipe.apartment.towers) {
-                recipe.apartment.towers.forEach((t, i) => createTowerCard(i, t));
-            }
-
-            addTowerBtn.addEventListener('click', () => {
-                if (housingType === "Apartment-Single Tower" && towersContainer.children.length >= 1) {
-                    alert("Only one tower allowed for Single Tower type.");
-                    return;
+            // Populate based on housing type and recipe
+            if (housingType.startsWith("Apartment")) {
+                if (recipeData.apartment && recipeData.apartment.towers && recipeData.apartment.towers.length > 0) {
+                    recipeData.apartment.towers.forEach((t, i) => createTowerCard(i, t));
+                } else {
+                     // If no data, ensure one empty card is present for apartment single/multi
+                     createTowerCard(0); 
                 }
-                createTowerCard(towersContainer.children.length);
-            });
 
-        } else if (housingType.startsWith("Villas")) {
-            addLaneBtn.disabled = housingType !== "Villas-Lanes";
-            if (recipe.individual?.lanes && housingType === "Villas-Lanes") {
-                recipe.individual.lanes.forEach((l, i) => createLaneCard(i, l));
-            }
-            if (recipe.individual?.house_numbers && housingType === "Villas-No Lanes") {
-                document.getElementById('houses_no_lane').value = recipe.individual?.house_numbers?.numbers_raw || '';
-            }
-        } else if (housingType.startsWith("Civil")) {
-            addLaneBtn.disabled = true;
-            if (recipe.individual?.house_numbers) {
-                document.getElementById('houses_no_lane').value = recipe.individual?.house_numbers?.numbers_raw || '';
+            } else if (housingType.startsWith("Villas")) {
+                if (housingType === "Villas-Lanes") {
+                     if (recipeData.individual?.lanes && recipeData.individual.lanes.length > 0) {
+                        recipeData.individual.lanes.forEach((l, i) => createLaneCard(i, l));
+                    } else {
+                        // If no data, ensure one empty card is present for lanes
+                        createLaneCard(0);
+                    }
+                }
+                if (housingType === "Villas-No Lanes") {
+                    document.getElementById('houses_no_lane').value = recipeData.individual?.house_numbers?.numbers_raw || '';
+                }
+            } else if (housingType.startsWith("Civil")) {
+                if (recipeData.individual?.house_numbers) {
+                    document.getElementById('houses_no_lane').value = recipeData.individual?.house_numbers?.numbers_raw || '';
+                }
             }
         }
 
-        // Default add lane button handler
-        addLaneBtn.addEventListener('click', () => createLaneCard(document.getElementById('lanesMatrix').children.length));
+        // ---------- Add Tower/Lane Button Handlers (Bound only once) ----------
+
+        addTowerBtn.addEventListener('click', () => {
+            // Find the highest existing index and use the next one to maintain sequence
+            const existingIndices = Array.from(towersContainer.querySelectorAll('.item-card'))
+                .map(card => parseInt(card.querySelector('input[name*="[name]"]').name.match(/\[(\d+)\]/)[1]));
+            const nextIndex = existingIndices.length > 0 ? Math.max(...existingIndices) + 1 : 0;
+            
+            if (housingType === "Apartment-Single Tower" && towersContainer.children.length >= 1) {
+                alert("Only one tower allowed for Single Tower type.");
+                return;
+            }
+            createTowerCard(nextIndex);
+        });
+
+        addLaneBtn.addEventListener('click', () => {
+            // Find the highest existing index and use the next one to maintain sequence
+            const existingIndices = Array.from(lanesMatrix.querySelectorAll('.item-card'))
+                .map(card => parseInt(card.querySelector('input[name*="[name]"]').name.match(/\[(\d+)\]/)[1]));
+            const nextIndex = existingIndices.length > 0 ? Math.max(...existingIndices) + 1 : 0;
+
+            createLaneCard(nextIndex);
+        });
+
+
+        // ---------- Mode Switching Logic (Modified to call setupManualForm correctly) ----------
+
+        function handleConfigModeChange(mode) {
+            const isManual = mode === 'manual';
+            
+            // Toggle Section Visibility
+            uploadSection.style.display = isManual ? 'none' : 'block';
+            manualSubmitBtn.style.display = isManual ? 'block' : 'none';
+            
+            // Determine which manual section to show based on housing type
+            const isApartment = housingType.startsWith("Apartment");
+            const isIndividual = housingType.startsWith("Villas") || housingType.startsWith("Civil");
+
+            apartmentSection.style.display = (isApartment && isManual) ? 'block' : 'none';
+            individualSection.style.display = (isIndividual && isManual) ? 'block' : 'none';
+
+            // Show appropriate sub-sections for individual mode
+            if (isIndividual && isManual) {
+                if (housingType === "Villas-Lanes") {
+                    lanesContainerDiv.style.display = 'block';
+                    noLaneContainer.style.display = 'none';
+                } else if (housingType === "Villas-No Lanes" || housingType.startsWith("Civil")) {
+                    lanesContainerDiv.style.display = 'none';
+                    noLaneContainer.style.display = 'block';
+                }
+            }
+
+            if (isManual) {
+                // ⭐ CRITICAL: Repopulate form fields when switching to Manual mode
+                setupManualForm(recipe);
+            } else {
+                // Switched to Upload mode: Clear manual inputs 
+                towersContainer.innerHTML = '';
+                lanesMatrix.innerHTML = '';
+                document.getElementById('houses_no_lane').value = '';
+                
+                // Clear the file input
+                configFileInput.value = '';
+                uploadSubmitBtn.disabled = true;
+            }
+        }
+
+        configModeRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => handleConfigModeChange(e.target.value));
+        });
+
+        // ⭐ CRITICAL: Initial Form Setup on page load ⭐
+        // Determine the checked radio button on load (default is 'manual')
+        const initialMode = document.querySelector('input[name="config_mode"]:checked').value;
+        handleConfigModeChange(initialMode);
+
+
+        // Security features (Kept as is)
         document.addEventListener('contextmenu', e => e.preventDefault());
         document.addEventListener('keydown', e => {
         if (
         e.key === "F12" ||
         (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
         (e.ctrlKey && e.key.toUpperCase() === "U")
-        ) e.preventDefault();    
-        });   
+        ) e.preventDefault();    
+        });   
     });
-    </script>
-    <footer style="position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); color: #0000FF; font-size: 1rem;">
-        D3 by: <a href="mailto:vpchaya@gmail.com" style="color: #0000FF; text-decoration: underline;">vpchaya@gmail.com</a>
-    </footer>
+</script>
 </body>
 </html>

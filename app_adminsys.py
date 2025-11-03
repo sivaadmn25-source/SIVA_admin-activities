@@ -13,6 +13,7 @@ from functools import wraps
 from collections import defaultdict
 from datetime import datetime
 from dotenv import load_dotenv
+import secrets
  
 # --- INITIALIZATION ---
 load_dotenv() 
@@ -82,6 +83,11 @@ def get_db():
         app.logger.error(f"Error connecting to PostgreSQL database: {e}")
         return None
  
+def generate_secret_code(length=8):
+    """Generates a random, strong alphanumeric secret code."""
+    characters = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(characters) for _ in range(length))
+
 def generate_households_from_recipe(recipe_data):
     household_list = []
     society_name = recipe_data.get("society_name", "DEFAULT_SOCIETY")
@@ -444,6 +450,8 @@ def add_no_cache_headers(response):
 @app.route('/home-management', methods=['GET', 'POST'])
 @login_required
 def home_management():
+    # NOTE: This function assumes 'generate_secret_code()' is defined elsewhere and returns a hash.
+    
     society_name = session.get('society_name')
     housing_type = session.get('housing_type')
 
@@ -456,7 +464,7 @@ def home_management():
         conn = get_db()
         if not conn:
             flash("Database connection error.", "danger")
-            return redirect(url_for('home_management')) # Redirect to self on DB error
+            return redirect(url_for('home_management'))
 
         recipe_to_save = {}
         action = request.form.get('action', 'manual') 
@@ -480,7 +488,7 @@ def home_management():
             }
 
             # -----------------------------------------------
-            # ⭐ FIX START: Dual Input Processing Logic
+            # ⭐ Input Processing Logic (Manual or Upload) ⭐
             # -----------------------------------------------
             
             if action == 'upload':
@@ -588,17 +596,28 @@ def home_management():
             # --- Database Operations (Common to both manual and upload) ---
             final_household_list = generate_households_from_recipe(recipe_to_save)
 
+            # ⭐ HASHING FIX: Prepare the list for insertion including the HASHED secret code
+            insert_values = []
+            for society, tower, flat in final_household_list:
+                # Generate and hash a NEW secret code for EVERY record (Wipes old status, requires re-distro)
+                hashed_code = generate_secret_code() 
+                insert_values.append((society, tower, flat, hashed_code))
+                
             with conn.cursor() as cur:
+                # Step 1: DELETE ALL existing households for this society (as per existing logic)
                 cur.execute("DELETE FROM households WHERE society_name = %s;", (society_name,))
 
-                if final_household_list:
+                # Step 2: INSERT new households with the SECURE HASH
+                if insert_values:
                     psycopg2.extras.execute_values(
                         cur,
-                        "INSERT INTO households (society_name, tower, flat) VALUES %s",
-                        final_household_list,
+                        "INSERT INTO households (society_name, tower, flat, secret_code) VALUES %s",
+                        insert_values,
+                        template="(%s, %s, %s, %s)",
                         page_size=1000
                     )
 
+                # Step 3: Save the recipe data
                 cur.execute(
                     """
                     INSERT INTO home_data (society_name, data) VALUES (%s, %s)
@@ -607,9 +626,9 @@ def home_management():
                     (society_name, json.dumps(recipe_to_save))
                 )
 
-            conn.commit()
-            flash(f"Home configuration for {society_name} saved. {len(final_household_list)} households created/updated.", "success")
-        
+                conn.commit()
+                flash(f"Home configuration for {society_name} saved. {len(final_household_list)} households created/updated with new secret codes.", "success")
+            
         except (Exception, psycopg2.DatabaseError) as e:
             if conn:
                 conn.rollback()
@@ -619,7 +638,6 @@ def home_management():
             if conn:
                 conn.close()
         
-        # ⭐ FIX: Redirect after POST ensures data is reloaded on the GET request
         return redirect(url_for('home_management')) 
 
 
@@ -731,6 +749,7 @@ def set_voting_time():
 
 @app.route("/api/verify_code", methods=["POST"])
 def verify_code():
+    # NOTE: Requires 'from werkzeug.security import check_password_hash' at the top of the file
     data = request.get_json()
     society_name = data.get('society')
     tower = data.get('tower')
@@ -746,6 +765,7 @@ def verify_code():
 
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            # --- 1. Voting Schedule Check (Unchanged) ---
             cur.execute("SELECT start_time, end_time FROM voting_schedule WHERE society_name = %s", (society_name,))
             schedule = cur.fetchone()
 
@@ -759,21 +779,25 @@ def verify_code():
             if not (start_time_utc <= current_time_utc < end_time_utc):
                 return jsonify({"success": False, "message": "Voting is closed."}), 403
 
-            # ⭐ HASHING CHANGE 4a: Retrieve household data without the secret code for comparison
+            # --- 2. Secure Credential Verification (FIXED) ---
+            # HASHING FIX 4a: Retrieve household data based on location only
             cur.execute(
                 "SELECT * FROM households WHERE society_name = %s AND tower = %s AND flat = %s",
                 (society_name, tower, flat)
             )
             household = cur.fetchone()
             
+            # Check 1: Does the household exist?
             if not household:
                 return jsonify({"success": False, "message": "Invalid credentials."}), 401
             
-            # ⭐ HASHING CHANGE 4b: Check secret code against the stored hash
+            # HASHING FIX 4b: Check secret code against the stored hash
             stored_hash = household['secret_code']
             if not (stored_hash and check_password_hash(stored_hash, secret_code)):
+                # Return the same generic "Invalid credentials" error to avoid security leakage
                 return jsonify({"success": False, "message": "Invalid credentials."}), 401
             
+            # --- 3. Voting Eligibility Checks (Unchanged) ---
             VOTED_FLAG = 1
             if household['voted_in_cycle'] == VOTED_FLAG:
                 return jsonify({"success": False, "message": "This household has already voted."}), 403
@@ -783,6 +807,7 @@ def verify_code():
             if not household['is_vote_allowed']:
                 return jsonify({"success": False, "message": "This household is not allowed to vote."}), 403
 
+            # --- 4. Success ---
             session['household_id'] = household['id']
             return jsonify({"success": True, "message": "Verification successful."})
 
