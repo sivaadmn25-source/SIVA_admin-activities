@@ -40,7 +40,8 @@
             max-width: 600px;
             /* ⭐ STANDARDIZATION: Ribbon Height (60px) ⭐ */
             height: 60px;
-            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%);
+            /*background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%);*/
+            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #584df0 100%);
             position: fixed;
             top: 20px;
             left: 50%;
@@ -69,21 +70,7 @@
             /* Inherits 1.8rem from .ribbon, override if needed: font-size: 1.8rem; */
             text-decoration: none;
         }
-
-    /*    .ribbon h1 .chakra {
-            width: 45px;
-            height: 45px;
-            display: inline-block;
-            vertical-align: middle;
-            animation: spinChakra 10s linear infinite;
-            transform-origin: 50% 50%;
-        }
-
-        @keyframes spinChakra {
-            from { transform: rotate(0deg); }
-            to   { transform: rotate(360deg); }
-        } */
-
+        
         .card {
             background-color: white;
             padding: 1.5em;
@@ -226,14 +213,18 @@
                 flex: 1 1 15%;
             }
             .form-group:nth-child(3) {
-               flex: 2 1 20%;
+                flex: 2 1 20%;
+            }
+            /* Ensure the form-actions aligns correctly in the desktop view */
+            .form-actions {
+                 flex: 0 0 auto; /* Added to keep button size correct */
             }
         }
-/* Rainbow SIVA text aligned to match ribbon font */
+        /* Rainbow SIVA text aligned to match ribbon font */
         .ribbon .siva-text {
             font-weight: 800;
             font-size: 2.2rem;
-            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #584df0 100%);
+            background: linear-gradient(270deg, gold, orange, yellow, green, blue, indigo, violet, gold);
             background-size: 400% 100%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -247,7 +238,7 @@
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
-        } 
+        }
         /* Footer style fix for mobile compliance */
         footer {
             position: fixed; 
@@ -262,7 +253,7 @@
         }
     </style>
 </head>
-<body> 
+<body>
     {% with messages = get_flashed_messages(with_categories=true) %} 
         {% if messages %}
             <div style="position: fixed; top: 90px; left: 50%; transform: translateX(-50%); z-index: 2000; width: 90%; max-width: 600px;">
@@ -276,21 +267,7 @@
     {% endwith %}
 
    <div class="ribbon">
-    <h1>
-     <!--   <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="50" cy="50" r="48" stroke="#0000FF" stroke-width="4" fill="none"/>
-            <g stroke="#0000FF" stroke-width="2">
-                <g transform="translate(50,50)">
-                    <circle r="3" fill="#0000FF"/>
-                    <defs>
-                        <line id="spoke" y1="3" y2="-47"/>
-                    </defs>
-                    {% for i in range(0, 360, 15) %}
-                        <use href="#spoke" transform="rotate({{ i }})"/>
-                    {% endfor %}
-                </g>
-            </g>
-        </svg> -->
+    <h1> 
         Manage Contestants <span class="siva-text">SIVA</span>
     </h1>
    </div>
@@ -323,8 +300,8 @@
                     </div>
 
                     <div class="form-group" style="flex: 1.5;">
-                        <label for="contestant_symbol">Contestant Symbol:</label>
-                        <input type="file" name="contestant_symbol" id="contestant_symbol" accept="image/*" required>
+                        <label for="contestant_symbol_data">Contestant Symbol (Upload):</label>
+                        <input type="file" name="contestant_symbol_data" id="contestant_symbol_data" accept="image/*" required>
                     </div>
 
                     <div class="form-group" style="flex: 1.5;">
@@ -359,12 +336,12 @@
                             <td>{{ c.contestant_name }}</td>
                             <td class="contestant-photo">
                                 {% if c.contestant_photo_b64 %}
-                                    <img src="{{ c.contestant_photo_b64 }}" alt="Contestant Photo">
+                                    <img src="{{ c.contestant_photo_b64 }}" alt="{{ c.contestant_name }} Photo">
                                 {% else %} N/A {% endif %}
                             </td>
                             <td class="contestant-symbol">
                                 {% if c.contestant_symbol %}
-                                    <img src="{{ url_for('uploaded_file', filename=c.contestant_symbol) }}" alt="Symbol">
+                                    <img src="{{ c.contestant_symbol }}" alt="{{ c.contestant_name }} Symbol">
                                 {% else %} N/A {% endif %}
                             </td>
                             <td>
@@ -382,16 +359,17 @@
                 <p>No contestants have been designated yet.</p>
             {% endif %}
         </div>
- 
+
         <div class="back-link" style="margin-bottom: 50px;">
             <a href="{{ url_for('admin_panel') }}" class="btn" style="background-color: #2ecc71;">Back to Admin Panel</a>
         </div>
     </div>
- 
+
     <script>
         const householdsByTower = {{ households_by_tower_json | safe }};
         const towerSelect = document.getElementById('tower');
         const flatSelect = document.getElementById('flat');
+
         towerSelect.addEventListener('change', function() {
             flatSelect.innerHTML = '<option value="" disabled selected>-- Select Flat --</option>';
             const selectedTower = this.value;
@@ -405,37 +383,28 @@
             }
         });
 
-     document.addEventListener('keydown', e => {
+        // Combined DevTools and Right-Click Prevention (from your original code)
+        document.addEventListener('keydown', e => {
             if (
                 e.key === "F12" ||
                 (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
                 (e.ctrlKey && e.key.toUpperCase() === "U")
             ) e.preventDefault();
-        });        
-       document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();  // This will disable right-click
+        }); 
+        
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
         });
-
-        // Prevent DevTools shortcuts (F12, Ctrl+Shift+I, Ctrl+U)
-        document.addEventListener('keydown', function(e) {
-            if (
-                e.key === "F12" || 
-                (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) || 
-                (e.ctrlKey && e.key.toUpperCase() === "U")
-            ) e.preventDefault();
-        });
-
-        // Disable right-click on mouse down as well (some browsers)
+        
         document.addEventListener('mousedown', function(e) {
-            if (e.button === 2) {  // Right-click button
-                e.preventDefault();  // Disable right-click
+            if (e.button === 2) {
+                e.preventDefault();
             }
-        });   
-
+        }); 
     </script>
- 
+
     <footer>
-        Designed/Developed by: 
+        D3 by: 
         <a href="mailto:vpchaya@gmail.com" style="color: #0000FF;">
         vpchaya@gmail.com
         </a>
