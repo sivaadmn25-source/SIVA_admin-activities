@@ -5,10 +5,12 @@
     <title>Manage Contestants</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
-        /* Global box-sizing */
-        *, *::before, *::after { box-sizing: border-box; }
+        /* Global box-sizing to prevent footer offset */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
 
-        /* Global styles & Standardization */
+        /* Global styles */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
@@ -16,24 +18,29 @@
             width: 100%;
             min-height: 100vh;
             background-color: #f5f5f5;
-            max-width: 600px; /* ⭐ STANDARDIZATION: Body Max Width (600px) ⭐ */
+            
+            /* ⭐ STANDARDIZATION: Body Max Width (600px) ⭐ */
+            max-width: 600px; 
             margin-left: auto;
             margin-right: auto;
         }
 
         .container {
+            /* ⭐ STANDARDIZATION: Container Max Width (100% of 600px parent) ⭐ */
             max-width: 100%;
             margin: auto;
             padding: 1em;
-            margin-top: 80px; /* Adjusted margin for 60px ribbon + 20px top offset */
+            /* Adjusted margin for 60px ribbon */
+            margin-top: 80px; 
         }
 
-        /* Ribbon Styles */
         .ribbon {
             width: 100%;
-            max-width: 600px; /* ⭐ STANDARDIZATION: Ribbon Max Width (600px) ⭐ */
-            height: 60px; /* ⭐ STANDARDIZATION: Ribbon Height (60px) ⭐ */
-            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #584df0 100%);
+            /* ⭐ STANDARDIZATION: Ribbon Max Width (600px) ⭐ */
+            max-width: 600px;
+            /* ⭐ STANDARDIZATION: Ribbon Height (60px) ⭐ */
+            height: 60px;
+            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #138808 100%);
             position: fixed;
             top: 20px;
             left: 50%;
@@ -42,10 +49,16 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            color: #0000FF;
+            /* ⭐ STANDARDIZATION: Ribbon Text Size (1.8rem) ⭐ */
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            line-height: 1;
         }
-        
+
         .ribbon h1 {
             display: flex;
             align-items: center;
@@ -53,33 +66,24 @@
             gap: 12px;
             margin: 0;
             color: #0000FF;
-            font-size: 1.8rem; /* ⭐ STANDARDIZATION: Ribbon Text Size (1.8rem) ⭐ */
-            font-weight: bold;
-            text-transform: uppercase;
-            line-height: 1;
+            /* Inherits 1.8rem from .ribbon, override if needed: font-size: 1.8rem; */
+            text-decoration: none;
         }
 
-        /* Rainbow SIVA text aligned to match ribbon font */
-        .ribbon .siva-text {
-            font-weight: 800;
-            font-size: 2.2rem;
-            background: linear-gradient(270deg, gold, orange, yellow, green, blue, indigo, violet, gold);
-            background-size: 400% 100%;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-            margin-left: 6px;
-            white-space: nowrap;
-            animation: rainbow 6s ease infinite;
+    /*    .ribbon h1 .chakra {
+            width: 45px;
+            height: 45px;
+            display: inline-block;
+            vertical-align: middle;
+            animation: spinChakra 10s linear infinite;
+            transform-origin: 50% 50%;
         }
 
-        @keyframes rainbow {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
+        @keyframes spinChakra {
+            from { transform: rotate(0deg); }
+            to   { transform: rotate(360deg); }
+        } */
 
-        /* Card and Header Styles */
         .card {
             background-color: white;
             padding: 1.5em;
@@ -88,7 +92,12 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.08);
         }
 
-        h1 { color: #333; text-align: center; font-size: 28px; margin-bottom: 10px; }
+        h1 {
+            color: #333;
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
         
         h2 {
             color: #333;
@@ -98,8 +107,31 @@
             border-bottom: 2px solid #eee;
             padding-bottom: 10px;
         }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1em;
+            /* Added for mobile scrolling */
+            display: block; 
+            overflow-x: auto;
+            white-space: nowrap;
+        }
         
-        /* Form Styles */
+        /* Ensure table header/body respects block display */
+        thead, tbody, tr { display: table; width: 100%; table-layout: fixed; }
+
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f8f8f8;
+        }
+
         select, input[type="text"], input[type="file"] {
             width: 100%;
             padding: 10px;
@@ -108,7 +140,57 @@
             font-size: 16px;
             box-sizing: border-box;
         }
-        
+
+        .btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+            font-size: 14px;
+            padding: 5px 10px;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .back-link {
+            margin-top: 30px;
+            text-align: center;
+        }
+
+        .contestant-photo img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 50%;
+            border: 2px solid #ccc;
+        }
+
+        .contestant-symbol img {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
         .form-grid {
             display: flex;
             flex-direction: column;
@@ -126,90 +208,53 @@
             font-weight: bold;
             color: #555;
         }
-        
+
         .form-actions {
             display: flex;
             align-items: flex-end;
             margin-top: 10px;
         }
-        
-        /* Button Styles */
-        .btn {
-            padding: 10px 20px;
-            font-size: 16px;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-decoration: none;
-            display: inline-block;
-        }
 
-        .btn-primary { background-color: #3498db; }
-        .btn-primary:hover { background-color: #2980b9; }
-
-        .btn-danger {
-            background-color: #e74c3c;
-            font-size: 14px;
-            padding: 5px 10px;
-        }
-        .btn-danger:hover { background-color: #c0392b; }
-
-        .back-link { margin-top: 30px; text-align: center; }
-
-        /* Table Styles (including responsiveness) */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 1em;
-            display: block; 
-            overflow-x: auto;
-            white-space: nowrap;
-        }
-        thead, tbody, tr { display: table; width: 100%; table-layout: fixed; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #f8f8f8; }
-
-        .contestant-photo img {
-            width: 50px; height: 50px;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 2px solid #ccc;
-        }
-
-        .contestant-symbol img {
-            width: 50px; height: 50px;
-            object-fit: contain;
-            border-radius: 8px;
-            border: 1px solid #ddd;
-        }
-
-        /* Responsive Form Grid */
         @media (min-width: 768px) {
             .form-grid {
                 flex-direction: row;
                 align-items: flex-end;
                 gap: 10px;
             }
+            /* Reset mobile override flex values to ensure alignment */
             .form-group {
                 flex: 1 1 15%;
             }
-            /* Custom widths for Tower, Flat, Name (original custom sizing) */
-            .form-group:nth-child(1) { flex: 1.5; } /* Tower */
-            .form-group:nth-child(2) { flex: 1.5; } /* Flat */
-            .form-group:nth-child(3) { flex: 2; }   /* Name */
-            .form-group:nth-child(4) { flex: 1.5; } /* Symbol */
-            .form-group:nth-child(5) { flex: 1.5; } /* Photo */
-            .form-actions { flex: 0 0 auto; margin-left: 5px; }
+            .form-group:nth-child(3) {
+               flex: 2 1 20%;
+            }
+        }
+/* Rainbow SIVA text aligned to match ribbon font */
+        .ribbon .siva-text {
+            font-weight: 800;
+            font-size: 2.2rem;
+            background: linear-gradient(to bottom, #FF9933 33.33%, #FFFFFF 66.66%, #584df0 100%);
+            background-size: 400% 100%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
+            margin-left: 6px;
+            white-space: nowrap;
+            animation: rainbow 6s ease infinite;
         }
 
+        @keyframes rainbow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        } 
         /* Footer style fix for mobile compliance */
         footer {
             position: fixed; 
             bottom: 8px; 
             left: 50%; 
             transform: translateX(-50%); 
-            font-size: 0.9rem;
+            font-size: 0.9rem; /* Adjusted for readability */
             color: #555; 
             background-color: rgba(255,255,255,0.7); 
             padding: 5px 10px; 
@@ -217,14 +262,12 @@
         }
     </style>
 </head>
-<body>
-    {# ------------------ FLASH MESSAGES ------------------ #}
+<body> 
     {% with messages = get_flashed_messages(with_categories=true) %} 
         {% if messages %}
             <div style="position: fixed; top: 90px; left: 50%; transform: translateX(-50%); z-index: 2000; width: 90%; max-width: 600px;">
             {% for category, message in messages %} 
-                {% set bg_color = '#d9534f' if category == 'danger' else '#5cb85c' %}
-                <div style="color: white; font-weight: bold; background-color: {{ bg_color }}; padding: 15px; border-radius: 5px; margin-bottom: 10px; text-align: center;">
+                <div style="color: white; font-weight: bold; background-color: {{ '#d9534f' if category == 'danger' else '#5cb85c' }}; padding: 15px; border-radius: 5px; margin-bottom: 10px; text-align: center;">
                     {{ message }}
                 </div>
             {% endfor %}
@@ -232,23 +275,34 @@
         {% endif %}
     {% endwith %}
 
-    {# ------------------ RIBBON HEADER ------------------ #}
-    <div class="ribbon">
-        <h1>
-            Manage Contestants <span class="siva-text">SIVA</span>
-        </h1>
-    </div>
+   <div class="ribbon">
+    <h1>
+     <!--   <svg class="chakra" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="48" stroke="#0000FF" stroke-width="4" fill="none"/>
+            <g stroke="#0000FF" stroke-width="2">
+                <g transform="translate(50,50)">
+                    <circle r="3" fill="#0000FF"/>
+                    <defs>
+                        <line id="spoke" y1="3" y2="-47"/>
+                    </defs>
+                    {% for i in range(0, 360, 15) %}
+                        <use href="#spoke" transform="rotate({{ i }})"/>
+                    {% endfor %}
+                </g>
+            </g>
+        </svg> -->
+        Manage Contestants <span class="siva-text">SIVA</span>
+    </h1>
+   </div>
 
     <div class="container">
         <h1>Contestant Dashboard</h1>
 
-        {# ------------------ ADD CONTESTANT CARD ------------------ #}
         <div class="card">
             <h2>Designate a New Contestant</h2>
             <form method="POST" action="{{ url_for('manage_contestants') }}" enctype="multipart/form-data">
                 <div class="form-grid">
-                    
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1.5;">
                         <label for="tower">Tower:</label>
                         <select name="tower" id="tower" class="form-control" required>
                             <option value="" disabled selected>-- Select Tower --</option>
@@ -256,24 +310,24 @@
                         </select>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1.5;">
                         <label for="flat">Flat:</label>
                         <select name="flat" id="flat" required>
                             <option value="" disabled selected>-- Select a Tower First --</option>
                         </select>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 2;">
                         <label for="contestant_name">Contestant Name:</label>
                         <input type="text" name="contestant_name" id="contestant_name" required>
                     </div>
 
-                    <div class="form-group">
-                        <label for="contestant_symbol_data">Contestant Symbol (Upload):</label>
-                        <input type="file" name="contestant_symbol_data" id="contestant_symbol_data" accept="image/*" required>
+                    <div class="form-group" style="flex: 1.5;">
+                        <label for="contestant_symbol">Contestant Symbol:</label>
+                        <input type="file" name="contestant_symbol" id="contestant_symbol" accept="image/*" required>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="flex: 1.5;">
                         <label for="contestant_photo">Contestant Photo (Upload):</label>
                         <input type="file" name="contestant_photo" id="contestant_photo" accept="image/*">
                     </div>
@@ -285,7 +339,6 @@
             </form>
         </div>
 
-        {# ------------------ CURRENT CONTESTANTS CARD ------------------ #}
         <div class="card">
             <h2>Current Contestants</h2>
             {% if contestants %}
@@ -306,12 +359,12 @@
                             <td>{{ c.contestant_name }}</td>
                             <td class="contestant-photo">
                                 {% if c.contestant_photo_b64 %}
-                                    <img src="{{ c.contestant_photo_b64 }}" alt="{{ c.contestant_name }} Photo">
+                                    <img src="{{ c.contestant_photo_b64 }}" alt="Contestant Photo">
                                 {% else %} N/A {% endif %}
                             </td>
                             <td class="contestant-symbol">
                                 {% if c.contestant_symbol %}
-                                    <img src="{{ c.contestant_symbol }}" alt="{{ c.contestant_name }} Symbol">
+                                    <img src="{{ url_for('uploaded_file', filename=c.contestant_symbol) }}" alt="Symbol">
                                 {% else %} N/A {% endif %}
                             </td>
                             <td>
@@ -329,19 +382,16 @@
                 <p>No contestants have been designated yet.</p>
             {% endif %}
         </div>
-
-        {# ------------------ BACK LINK ------------------ #}
+ 
         <div class="back-link" style="margin-bottom: 50px;">
             <a href="{{ url_for('admin_panel') }}" class="btn" style="background-color: #2ecc71;">Back to Admin Panel</a>
         </div>
     </div>
-
-    {# ------------------ JAVASCRIPT (No change needed) ------------------ #}
+ 
     <script>
         const householdsByTower = {{ households_by_tower_json | safe }};
         const towerSelect = document.getElementById('tower');
         const flatSelect = document.getElementById('flat');
-
         towerSelect.addEventListener('change', function() {
             flatSelect.innerHTML = '<option value="" disabled selected>-- Select Flat --</option>';
             const selectedTower = this.value;
@@ -355,29 +405,37 @@
             }
         });
 
-        // Prevent DevTools shortcuts (F12, Ctrl+Shift+I, Ctrl+U) and right-click
-        document.addEventListener('keydown', e => {
+     document.addEventListener('keydown', e => {
             if (
                 e.key === "F12" ||
                 (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) ||
                 (e.ctrlKey && e.key.toUpperCase() === "U")
             ) e.preventDefault();
+        });        
+       document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();  // This will disable right-click
         });
-       
-        document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-        });
-        
-        document.addEventListener('mousedown', function(e) {
-            if (e.button === 2) {
-                e.preventDefault();
-            }
-        }); 
-    </script>
 
-    {# ------------------ FOOTER ------------------ #}
+        // Prevent DevTools shortcuts (F12, Ctrl+Shift+I, Ctrl+U)
+        document.addEventListener('keydown', function(e) {
+            if (
+                e.key === "F12" || 
+                (e.ctrlKey && e.shiftKey && ["I", "J", "C"].includes(e.key.toUpperCase())) || 
+                (e.ctrlKey && e.key.toUpperCase() === "U")
+            ) e.preventDefault();
+        });
+
+        // Disable right-click on mouse down as well (some browsers)
+        document.addEventListener('mousedown', function(e) {
+            if (e.button === 2) {  // Right-click button
+                e.preventDefault();  // Disable right-click
+            }
+        });   
+
+    </script>
+ 
     <footer>
-        D3 by: 
+        Designed/Developed by: 
         <a href="mailto:vpchaya@gmail.com" style="color: #0000FF;">
         vpchaya@gmail.com
         </a>
