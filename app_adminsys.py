@@ -12,6 +12,7 @@ from functools import wraps
 from collections import defaultdict
 from datetime import datetime
 from dotenv import load_dotenv
+from bcrypt import hashpw, gensalt, checkpw # ⭐ ADDED: For password/code hashing
 
 # --- INITIALIZATION ---
 load_dotenv() 
@@ -271,8 +272,9 @@ def admin_password_prompt():
                 admin_rows = cur.fetchall() 
                 
                 for row in admin_rows:
-                    # ✅ UPDATE: Plain text password comparison
-                    if password == row['password_hash']: 
+                    # ⭐ HASHING CHANGE 1: Compare password against stored hash using checkpw
+                    stored_hash = row['password_hash']
+                    if stored_hash and checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')): 
                         logged_in_user_data = row
                         break
         
@@ -323,11 +325,12 @@ def public_reset_password():
         conn = get_db()
         cur = conn.cursor()
         
-        # NOTE: Updating the password_hash column with the PLAIN PASSWORD as requested by the user.
-        # This is extremely insecure.
+        # ⭐ HASHING CHANGE 2: Hash the new password before updating the database
+        hashed_password = hashpw(new_password.encode('utf-8'), gensalt()).decode('utf-8')
+        
         cur.execute(
             "UPDATE admins SET password_hash = %s WHERE society_name = %s AND email = %s", 
-            (new_password, society_name, email_id)
+            (hashed_password, society_name, email_id)
         )
         
         if cur.rowcount == 0:
@@ -390,8 +393,10 @@ def super_admin_password_prompt():
             if conn:
                 conn.close()
         
-        # ✅ UPDATE: Plain text password comparison
-        if super_admin_row and password == super_admin_row['password_hash']:
+        # ⭐ HASHING CHANGE 3: Compare password against stored hash using checkpw
+        stored_hash = super_admin_row['password_hash'] if super_admin_row else None
+        
+        if super_admin_row and stored_hash and checkpw(password.encode('utf-8'), stored_hash.encode('utf-8')):
             user = AdminUser(
                 user_id=super_admin_row['id'],
                 role=super_admin_row['role'],
@@ -754,15 +759,19 @@ def verify_code():
             if not (start_time_utc <= current_time_utc < end_time_utc):
                 return jsonify({"success": False, "message": "Voting is closed."}), 403
 
+            # ⭐ HASHING CHANGE 4a: Retrieve household data without the secret code for comparison
             cur.execute(
-                "SELECT * FROM households WHERE society_name = %s AND tower = %s AND flat = %s AND secret_code = %s",
-                (society_name, tower, flat, secret_code)
+                "SELECT * FROM households WHERE society_name = %s AND tower = %s AND flat = %s",
+                (society_name, tower, flat)
             )
             household = cur.fetchone()
             
-            # NOTE: Secret code is plain text and compared directly in the database query.
-
             if not household:
+                return jsonify({"success": False, "message": "Invalid credentials."}), 401
+            
+            # ⭐ HASHING CHANGE 4b: Check secret code against the stored hash
+            stored_hash = household['secret_code']
+            if not (stored_hash and checkpw(secret_code.encode('utf-8'), stored_hash.encode('utf-8'))):
                 return jsonify({"success": False, "message": "Invalid credentials."}), 401
             
             VOTED_FLAG = 1
@@ -818,6 +827,9 @@ def upload_secret_codes():
                 secret_code = str(r.get('SecretCode', '')).strip()
                 if not secret_code or not flat:
                     continue
+                
+                # ⭐ HASHING CHANGE 5: Hash the secret code before preparing the update
+                hashed_code = hashpw(secret_code.encode('utf-8'), gensalt()).decode('utf-8')
 
                 if housing_type.startswith("Apartment") or housing_type.startswith("Villas-Lanes"):
                     cur.execute(
@@ -826,7 +838,8 @@ def upload_secret_codes():
                         (society_name.strip().upper(), tower, flat)
                     )
                     if cur.fetchone():
-                        updates.append((secret_code, society_name.strip(), tower, flat))
+                        # Use the hashed code in the updates list
+                        updates.append((hashed_code, society_name.strip(), tower, flat))
 
                 elif housing_type.startswith("Villas-No Lanes") or housing_type.startswith("Civil"):
                     cur.execute(
@@ -835,7 +848,8 @@ def upload_secret_codes():
                         (society_name.strip().upper(), flat)
                     )
                     if cur.fetchone():
-                        updates.append((secret_code, society_name.strip(), flat))
+                        # Use the hashed code in the updates list
+                        updates.append((hashed_code, society_name.strip(), flat))
 
             if updates:
                 if housing_type.startswith(("Villas-No Lanes", "Civil")):
@@ -1252,8 +1266,9 @@ def reset_votes():
             
             admin_row = cur.fetchone()
 
-            # ✅ UPDATE: Plain text password comparison
-            if not admin_row or not password == admin_row['password_hash']:
+            # ⭐ HASHING CHANGE 6: Compare password against stored hash using checkpw
+            stored_hash = admin_row['password_hash'] if admin_row else None
+            if not admin_row or not (stored_hash and checkpw(password.encode('utf-8'), stored_hash.encode('utf-8'))):
                 return jsonify({'success': False, 'message': 'The entered password is not correct.'}), 401
 
             if current_user.is_super_admin:
