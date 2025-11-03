@@ -887,21 +887,19 @@ def manage_contestants():
     society_name = session.get('society_name')
     conn = get_db()
     if not conn:
-        flash("Database connection error.", "danger")
-        # Return a sensible default on DB failure
+        flash("Database connection error.", "danger") 
         return render_template("manage_contestants.html", towers=[], households_by_tower_json='{}', contestants=[])
 
     if request.method == 'POST':
         try:
-            with conn: # Use conn as a context manager for automatic commit/rollback
+            with conn:
                 with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
                     action = request.form.get('action')
                     tower = request.form.get('tower')
                     flat = request.form.get('flat')
 
-                    if action == 'add':
-                        contestant_name = request.form.get('contestant_name', '').strip()
-                        # --- Retrieve files (required to be added) ---
+                    if action == 'add': 
+                        contestant_name = request.form.get('contestant_name', '').strip() 
                         symbol_file = request.files.get('contestant_symbol')
                         photo_file = request.files.get('contestant_photo')
                         
@@ -909,33 +907,32 @@ def manage_contestants():
                             flash("Tower, Flat, and Contestant Name are required.", "danger")
                             return redirect(url_for('manage_contestants'))
 
-                        # ⭐ CRITICAL VALIDATION: Ensure both files are present
+                        # Ensure both files are uploaded
                         if not symbol_file or not symbol_file.filename or not photo_file or not photo_file.filename:
                             flash("Contestant symbol and photo files are required.", "danger")
                             return redirect(url_for('manage_contestants'))
                         
-                        # --- Base64 Encode Symbol (New logic, replacing file save) ---
-                        mime_type_symbol = symbol_file.mimetype or 'image/png' # Defaulting to PNG
+                        # Base64 encode symbol file
+                        mime_type_symbol = symbol_file.mimetype or 'image/png'
                         encoded_string_symbol = base64.b64encode(symbol_file.read()).decode('utf-8')
                         symbol_b64_string = f"data:{mime_type_symbol};base64,{encoded_string_symbol}"
                         
-                        # --- Base64 Encode Photo (Modified original logic) ---
-                        mime_type_photo = photo_file.mimetype or 'image/jpeg' # Defaulting to JPEG
+                        # Base64 encode photo file
+                        mime_type_photo = photo_file.mimetype or 'image/jpeg'
                         encoded_string_photo = base64.b64encode(photo_file.read()).decode('utf-8')
                         photo_b64_string = f"data:{mime_type_photo};base64,{encoded_string_photo}"
                         
-                        # --- Database Update ---
+                        # Database update to store base64 data
                         cur.execute(
                             """
                             UPDATE households
                             SET is_contestant = 1, contestant_name = %s,
                                 contestant_symbol = %s, contestant_photo_b64 = %s
                             WHERE society_name = %s AND tower = %s AND flat = %s
-                            """,
-                            # ⭐ UPDATED PARAMETERS: Both are Base64 strings now
+                            """, 
                             (contestant_name, symbol_b64_string, photo_b64_string, society_name, tower, flat)
                         )
-                        
+
                         cur.execute(
                             """
                             INSERT INTO votes (society_name, tower, contestant_name, is_archived, vote_count)
@@ -1023,7 +1020,8 @@ def manage_contestants():
     finally:
         if conn:
             conn.close()
-             
+
+
 @app.route('/view-results')
 @login_required
 def view_results():
