@@ -512,9 +512,12 @@ def home_management():
         recipe_to_save = {}
         action = request.form.get('action', 'manual') 
         
-        try:
-            housing_type_submitted = request.form.get("housing_type")
+        # Initialize variables for debug/feedback
+        housing_type_submitted = request.form.get("housing_type")
+        config_file = None
+        df = [] # To hold the data frame contents if uploaded
 
+        try:
             # --- Type determination logic ---
             if housing_type_submitted.startswith("Apartment"):
                 community_type_for_recipe = "apartment"
@@ -531,7 +534,7 @@ def home_management():
                 "society_name": society_name
             }
 
-            # --- DUAL INPUT PROCESSING LOGIC (Unchanged) ---
+            # --- DUAL INPUT PROCESSING LOGIC ---
             if action == 'upload':
                 config_file = request.files.get('config_file')
                 if not config_file or not config_file.filename:
@@ -540,12 +543,13 @@ def home_management():
                 
                 # Use pandas to read the file content
                 try:
+                    # NOTE: You MUST have pandas imported for this to work (e.g. `import pandas as pd`)
                     if config_file.filename.lower().endswith(('.xlsx', '.xls')):
-                        df = pd.read_excel(config_file, dtype=str)
+                        df_raw = pd.read_excel(config_file, dtype=str)
                     else:
-                        df = pd.read_csv(config_file, dtype=str)
+                        df_raw = pd.read_csv(config_file, dtype=str)
                     
-                    df = df.fillna('').to_dict('records')
+                    df = df_raw.fillna('').to_dict('records')
 
                 except Exception as e:
                     flash(f"Error reading file: Ensure it is a valid Excel or CSV format. ({e})", "danger")
@@ -578,6 +582,7 @@ def home_management():
                             })
                         recipe_to_save["individual"] = {"has_lane": True, "lanes": lanes_list}
                     else:
+                        # This handles Villas-No Lanes AND Civil types
                         house_numbers_raw = df[0].get('House_Numbers_Raw', '') if df else ''
                         recipe_to_save["individual"] = {
                             "has_lane": False,
@@ -629,6 +634,7 @@ def home_management():
                         }
             
             # 1. Generate the master list of (society_name, tower, flat) tuples from the recipe
+            # NOTE: The bug for "0 configured" is likely inside this function for Civil upload.
             final_household_list = generate_households_from_recipe(recipe_to_save)
             
             # 2. Get existing households and their secret codes (hashes)
@@ -686,7 +692,7 @@ def home_management():
                         """
                         INSERT INTO households (society_name, tower, flat, secret_code, mobile_number) 
                         VALUES %s
-                        ON CONFLICT (society_name, tower, flat) DO UPDATE SET mobile_number = EXCLUDED.mobile_number 
+                        ON CONFLICT (society_name, tower, flat) DO UPDATE SET secret_code = EXCLUDED.secret_code
                         """, 
                         insert_values,
                         template="(%s, %s, %s, %s, %s)", # Template updated to 5 values
@@ -722,16 +728,39 @@ def home_management():
 
                 conn.commit()
             
+            # 7. CRITICAL FIX: Final Steps: Check results, save config, and respond
+            total_configured = len(final_household_list)
+            new_codes_count = len(secret_code_report)
 
-            # 7. CRITICAL STEP: Generate and send Excel report (Download) 
-            # If any new secret codes were generated, send the Excel file.
-            if secret_code_report:
-                flash(f"Home configuration for {society_name} saved. {len(final_household_list)} households configured. Download the Excel report with **{len(secret_code_report)} NEW** secret codes now.", "success")
-                return send_codes_excel_response(secret_code_report, society_name)
-            
-            # Success/Fallback for when no new codes were generated
-            flash(f"Home configuration for {society_name} saved. {len(final_household_list)} households configured. No new secret codes were generated.", "success")
-            return redirect(url_for('home_management')) 
+            if total_configured > 0:
+                # Success - Homes were configured
+                if new_codes_count > 0:
+                    # Successfully configured homes AND generated new codes
+                    flash(f"✅ Configuration successful! **{total_configured}** households configured, and **{new_codes_count} NEW** secret codes were generated. Download the Excel report now.", "success")
+                    return send_codes_excel_response(secret_code_report, society_name)
+                else:
+                    # Successfully configured homes BUT no new codes (used existing codes)
+                    flash(f"✅ Configuration saved successfully. **{total_configured}** households configured. All homes retained their existing secret codes.", "success")
+                    return redirect(url_for('home_management'))
+            else:
+                # FIX for "0 configured" error: Provide detailed warning
+                # This logic assumes the problem is in the external parser (generate_households_from_recipe)
+                is_civil_upload = action == 'upload' and housing_type_submitted.startswith("Civil")
+                
+                # Check if raw data was present in the recipe before the parser ran
+                house_data_present = recipe_to_save.get("individual", {}).get("house_numbers", {}).get("numbers_raw")
+                
+                if is_civil_upload and house_data_present:
+                    # Data was present in the file, but external parser failed
+                    flash(f"⚠️ Uploaded successfully, but **0 households were configured**. The data could not be parsed. Please verify the '{housing_type_submitted}' format in the 'House_Numbers_Raw' column.", "danger")
+                elif action == 'upload' and not df:
+                    flash(f"⚠️ Upload successful, but the file was empty or improperly formatted (0 rows of data found).", "warning")
+                else:
+                    # General failure (e.g. empty manual input or apartment failure)
+                    flash(f"⚠️ Configuration saved, but the input resulted in **0 households** being configured. Please check your data.", "warning")
+                
+                return redirect(url_for('home_management'))
+
 
         except (Exception, psycopg2.DatabaseError) as e:
             if conn:
@@ -741,7 +770,7 @@ def home_management():
         finally:
             if conn:
                 conn.close()
-          
+            
         return redirect(url_for('home_management')) 
 
 
