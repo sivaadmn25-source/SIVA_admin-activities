@@ -41,8 +41,7 @@
     align-items: center;
     color: #0000FF;
     font-size: 1.8rem; /* Standardized Title Size */
-    font-weight: bold;
-    text-transform: uppercase;
+    font-weight: bold; 
     border-radius: 10px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
     white-space: nowrap;
@@ -230,9 +229,9 @@
           </g>
         </svg> -->
     {% if voting_status == 'CLOSED' %}
-      Post-Election Voter Audit - <span class="siva-text">SIVA</span>
+      Post-Election Audit - <span class="siva-text">SIVA</span>
     {% else %}
-      Pre-Election Audit (NO VOTES CAST) - <span class="siva-text">SIVA</span>
+      Pre-Election Audit (0 VOTES) - <span class="siva-text">SIVA</span>
     {% endif %}
     </h1>
   </div>

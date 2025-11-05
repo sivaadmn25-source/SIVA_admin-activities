@@ -748,7 +748,7 @@ def home_management():
             
             if total_configured > 0:
                 # ⭐ CRITICAL CHANGE: Always send the Excel report since codes were regenerated
-                flash(f"✅ Configuration successful! **{total_configured}** households configured, and **ALL** secret codes have been **REGENERATED** and updated in the database. Download the Excel report now.", "success")
+               # flash(f"✅ Configuration successful! **{total_configured}** households configured, and **ALL** secret codes have been **REGENERATED** and updated in the database. Download the Excel report now.", "success")#
                 return send_codes_excel_response(secret_code_report, society_name)
             else:
                 # Error/Warning logic (UNCHANGED)
