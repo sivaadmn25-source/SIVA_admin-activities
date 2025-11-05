@@ -1020,35 +1020,37 @@ def upload_secret_codes():
                 data_to_upsert.append((society_name_upper, 'NA', flat, hashed_code))
 
         if data_to_upsert:
-            if housing_type.startswith(("Villas-No Lanes", "Civil")):
-                # UPSERT query for No-Lanes/Civil (Unique on society_name, flat)
-                psycopg2.extras.execute_values(
-                    cur,
-                    """
-                    INSERT INTO households (society_name, tower, flat, secret_code)
-                    VALUES %s
-                    ON CONFLICT (society_name, flat) DO UPDATE
-                    SET secret_code = EXCLUDED.secret_code
-                    """,
-                    data_to_upsert,
-                    template="(%s, %s, %s, %s)" # Data order: society_name, tower ('NA'), flat, secret_code
-                )
-            else:
-                # UPSERT query for Apartments/Villas-Lanes (Unique on society_name, tower, flat)
-                psycopg2.extras.execute_values(
-                    cur,
-                    """
-                    INSERT INTO households (society_name, tower, flat, secret_code)
-                    VALUES %s
-                    ON CONFLICT (society_name, tower, flat) DO UPDATE
-                    SET secret_code = EXCLUDED.secret_code
-                    """,
-                    data_to_upsert,
-                    template="(%s, %s, %s, %s)" # Data order: society_name, tower, flat, secret_code
-                )
-            
-            conn.commit()
-            flash(f"✅ Successfully inserted/updated secret codes for {len(data_to_upsert)} records.", "success")
+                    with conn.cursor() as cur:
+                        if housing_type.startswith(("Villas-No Lanes", "Civil")):
+                            # UPSERT query for No-Lanes/Civil (Unique on society_name, flat)
+                            psycopg2.extras.execute_values(
+                                cur,
+                                """
+                                INSERT INTO households (society_name, tower, flat, secret_code)
+                                VALUES %s
+                                ON CONFLICT (society_name, flat) DO UPDATE
+                                SET secret_code = EXCLUDED.secret_code
+                                """,
+                                data_to_upsert
+                                # CRITICAL FIX: Removed template="(%s, %s, %s, %s)"
+                            )
+                        else:
+                            # UPSERT query for Apartments/Villas-Lanes (Unique on society_name, tower, flat)
+                            psycopg2.extras.execute_values(
+                                cur,
+                                """
+                                INSERT INTO households (society_name, tower, flat, secret_code)
+                                VALUES %s
+                                ON CONFLICT (society_name, tower, flat) DO UPDATE
+                                SET secret_code = EXCLUDED.secret_code
+                                """,
+                                data_to_upsert
+                                # CRITICAL FIX: Removed template="(%s, %s, %s, %s)"
+                            )
+                        
+                        conn.commit()
+                        flash(f"✅ Successfully inserted/updated secret codes for {len(data_to_upsert)} records.", "success")
+        
         else:
             flash("No valid rows with SecretCode found in the uploaded file.", "warning")
 
