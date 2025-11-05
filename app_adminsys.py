@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 import secrets 
 import string
 import hashlib # ⭐ ADDED: For fast SHA-256 hashing of secret codes
+from datetime import datetime, timedelta
  
 # --- INITIALIZATION ---
 load_dotenv() 
@@ -499,16 +500,7 @@ def admin_panel():
     voting_status = get_voting_status(society_name)
     response = make_response(render_template("admin_panel.html", voting_status=voting_status))
     return response
-
-@app.route('/admin-panel')
-@login_required
-def admin_panel():
-    society_name = current_user.society_name
-    voting_status = get_voting_status(society_name)
-    response = make_response(render_template("admin_panel.html", voting_status=voting_status))
-    return response
-
-
+ 
 @app.route('/logout')
 @login_required
 def logout():
@@ -938,7 +930,8 @@ def verify_code():
             
             # HASHING FIX 4b: Check secret code against the stored hash
             stored_hash = household['secret_code']
-            if not (stored_hash and check_password_hash(stored_hash, secret_code)):
+            # CRITICAL FIX: Use the custom function check_sha256_code for fast verification
+            if not (stored_hash and check_sha256_code(secret_code, stored_hash)):
                 # Return the same generic "Invalid credentials" error to avoid security leakage
                 return jsonify({"success": False, "message": "Invalid credentials."}), 401
             
@@ -962,7 +955,7 @@ def verify_code():
     finally:
         if conn:
             conn.close()
-
+             
 def hash_secret_code(raw_code):
     """Generates a SHA-256 hash prefixed with 'sha256$' for the secret code."""
     salt = os.getenv("FLASK_SECRET_KEY", "default-salt").encode('utf-8')
@@ -1521,7 +1514,7 @@ def get_voted_flats_grid_data():
     if not all_households:
         return jsonify({"towers": [], "all_possible_flats": [], "existing_flats": [], "voted_flats": [], "disallowed_flats": []})
 
-    towers = sorted(list({row['tower'] for row in all_households}))
+    
     all_possible_flats = sorted(list({row['flat'] for row in all_households}), key=lambda x: int(x) if x.isdigit() else 9999)
     existing_flats = {f"{row['tower']}-{row['flat']}" for row in all_households}
     voted_flats = {f"{row['tower']}-{row['flat']}" for row in all_households if row['voted_in_cycle'] == 1}
@@ -1530,7 +1523,7 @@ def get_voted_flats_grid_data():
     disallowed_flats = {
         f"{row['tower']}-{row['flat']}" 
         for row in all_households 
-        if row['is_admin_blocked']
+        if row['is_admin_blocked'] or not row['is_vote_allowed']
     }
     
     return jsonify({
@@ -1544,6 +1537,6 @@ def get_voted_flats_grid_data():
 if __name__ == '__main__':
     with app.app_context():
         # ensures the tables are setup and the system admin exists on startup
-        # assuming the tables are properly defined elsewhere or via a schema migration
+        # atowers = sorted(list({row['tower'] for row in all_households}))ssuming the tables are properly defined elsewhere or via a schema migration
     # The original file had two app.run() calls; keeping only the ophoto_file = request.files.get('contestant_photo')ne that runs the application
      app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
