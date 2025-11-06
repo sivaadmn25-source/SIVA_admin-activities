@@ -7,6 +7,7 @@ import psycopg2
 import psycopg2.extras
 import pandas as pd
 import pytz
+import requests
 import base64
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash # Required for password hashing
@@ -301,43 +302,74 @@ def check_sha256_code(raw_code, stored_hash):
     # Use secrets.compare_digest for constant-time comparison (security best practice)
     return secrets.compare_digest(current_hex, stored_hex)
 
+def send_email_brevo(to_email, subject, body):
+    """Send email using Brevo API (with robust HTML and error handling)."""
+    # NOTE: You MUST have 'requests' imported for this function to work.
+    brevo_api_key = os.getenv("BREVO_API_KEY")
+    
+    if not brevo_api_key:
+        print("⚠️ No Brevo API key found — simulation mode.")
+        print("To:", to_email)
+        print("Subject:", subject)
+        print("Body:\n", body)
+        return True  # Simulate success if key is missing
+
+    # 1. Convert plain text newlines (\n) to HTML break tags (<br>)
+    html_content_with_br = body.replace('\n', '<br>')
+
+    # 2. Wrap the <br> content in a standard HTML body
+    html_body = f"<html><body style='font-family:Arial,sans-serif;'>{html_content_with_br}</body></html>"
+
+    try:
+        url = "https://api.brevo.com/v3/smtp/email"
+        headers = {
+            "accept": "application/json",
+            "content-type": "application/json",
+            "api-key": brevo_api_key
+        }
+
+        payload = {
+            "sender": {"name": "SIVA Admin", "email": "siva.admn25@gmail.com"},
+            "to": [{"email": to_email}],
+            "subject": subject,
+            # Pass original body for text-only clients
+            "textContent": body,  # Plain-text content
+            "htmlContent": html_body  # HTML content for HTML-capable email clients
+        }
+
+        response = requests.post(url, headers=headers, json=payload)
+        
+        if response.status_code in (200, 201):
+            print(f"✅ Email sent to {to_email} via Brevo")
+            return True
+        else:
+            print(f"❌ Brevo API failed: {response.status_code}, {response.text}")
+            return False
+
+    except Exception as e:
+        print(f"❌ send_email_brevo exception: {e}") 
+        return False
+    
 # --- Place this function near your other helper functions ---
 def send_reset_email(email_to, society_name, otp_code):
     """
-    Sends the password reset email with the OTP.
-    
-    NOTE: Replace this function body with your actual email sending logic.
+    Sends the password reset email with the OTP using the send_email_brevo utility.
     """
     subject = f"[{society_name}] Password Reset Code"
     
-    # A simple plaintext body (use HTML/jinja templates for better formatting)
-    body = f"""
-    Dear Admin,
+    # The .strip() is correct for cleaning up the body.
+    body = f"""Dear Admin of {society_name},
 
-    You requested a password reset for the society: {society_name}. 
-    Your 6-digit one-time code is: {otp_code}.
-    This code is valid for 5 minutes. If you did not request this, please ignore this email.
-
-    Thank you.
-    """
+You requested a password reset for the society: {society_name}. 
+Your 6-digit one-time code is: {otp_code}.
+This code is valid for 5 minutes. If you did not request this, please ignore this email.
+      
+Thank you,
+The Election Management System Team
+""".strip()
     
-    print(f"--- FAKE EMAIL SENT ---")
-    print(f"TO: {email_to}")
-    print(f"SUBJECT: {subject}")
-    print(f"BODY:\n{body}")
-    print(f"--- END FAKE EMAIL ---")
-    
-    # Example of actual mailer usage (commented out)
-    # try:
-    #     msg = Message(subject, recipients=[email_to], body=body)
-    #     mail.send(msg)
-    #     return True
-    # except Exception as e:
-    #     print(f"Mail failed: {e}")
-    #     return False
-    return True # Always return true for this placeholder
-
-# --- ROUTES & VIEWS ---
+    # Passes the email_to variable correctly to the utility function
+    return send_email_brevo(email_to, subject, body)
 
 @app.route('/')
 def root_redirect():
