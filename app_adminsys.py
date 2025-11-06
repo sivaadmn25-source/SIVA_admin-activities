@@ -539,74 +539,7 @@ def request_password_reset():
         return jsonify(status='error', message='An internal server error occurred.'), 500
     finally:
         if conn: conn.close()
-
-
-@app.route('/verify_otp_and_reset', methods=['POST'])
-def verify_otp_and_reset():
-    """
-    Step 2: Triple-checks the OTP, email, and society, then updates the password.
-    Called via standard form submission from the frontend.
-    """
-    society_name = request.form.get('society_name', '').upper()
-    email_id = request.form.get('email_id', '')
-    otp_code = request.form.get('otp_code', '')
-    new_password = request.form.get('new_password', '')
-    confirm_password = request.form.get('confirm_password', '')
-
-    if new_password != confirm_password:
-        flash('New password and confirmation do not match!', 'error')
-        return redirect(url_for('admin_password_prompt'))
-    
-    conn = get_db()
-    
-    try:
-        # ** FIX: Create a cursor before executing **
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            # 1. Triple Check: Society, Email, Token, AND Expiry (MAXIMUM SECURITY)
-            cur.execute(
-                '''
-                SELECT id FROM admin_table 
-                WHERE society_name = %s 
-                  AND email_id = %s 
-                  AND reset_token = %s 
-                  AND reset_token_expiry > %s
-                ''',
-                (society_name, email_id, otp_code, datetime.now()) 
-            )
-            admin = cur.fetchone()
-
-            if admin is None:
-                flash('Invalid or expired reset code. Please try the "Forgot Password" process again.', 'error')
-                return redirect(url_for('admin_password_prompt'))
-
-            # 2. Hash the new password and update the database
-            hashed_password = generate_password_hash(new_password)
-            
-            # 3. Update the password and CLEAR the token and expiry (security against token reuse)
-            cur.execute(
-                '''
-                UPDATE admin_table SET 
-                    admin_password = %s, 
-                    reset_token = NULL, 
-                    reset_token_expiry = NULL 
-                WHERE society_name = %s
-                ''',
-                (hashed_password, society_name)
-            )
-        
-        conn.commit() # Commit transaction outside the cursor block
-
-        flash('Password successfully reset! You can now log in with your new password.', 'success')
-        return redirect(url_for('admin_password_prompt'))
-
-    except Exception as e:
-        if conn: conn.rollback()
-        print(f"Database error during password reset: {e}")
-        flash('An internal server error occurred during password reset.', 'error')
-        return redirect(url_for('admin_password_prompt'))
-    finally:
-        if conn: conn.close()
-
+ 
 @app.route('/admin-panel')
 @login_required
 def admin_panel():
