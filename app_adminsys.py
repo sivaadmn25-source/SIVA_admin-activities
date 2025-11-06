@@ -424,7 +424,7 @@ def verify_otp_and_reset():
     Called via standard form submission from the frontend.
     """
     society_name = request.form.get('society_name', '').upper()
-    email_id = request.form.get('email_id', '')
+    email = request.form.get('email', '')
     otp_code = request.form.get('otp_code', '')
     new_password = request.form.get('new_password', '')
     confirm_password = request.form.get('confirm_password', '')
@@ -443,11 +443,11 @@ def verify_otp_and_reset():
                 '''
                 SELECT id FROM admins 
                 WHERE society_name = %s 
-                  AND email_id = %s 
+                  AND email = %s 
                   AND reset_token = %s 
                   AND reset_token_expiry > %s
                 ''',
-                (society_name, email_id, otp_code, datetime.now()) 
+                (society_name, email, otp_code, datetime.now()) 
             )
             admin = cur.fetchone()
 
@@ -462,7 +462,7 @@ def verify_otp_and_reset():
             cur.execute(
                 '''
                 UPDATE admins SET 
-                    admin_password = %s, 
+                    password_hash = %s, 
                     reset_token = NULL, 
                     reset_token_expiry = NULL 
                 WHERE society_name = %s
@@ -493,9 +493,9 @@ def request_password_reset():
     Called via AJAX from the frontend.
     """
     society_name = request.form.get('society_name', '').upper()
-    email_id = request.form.get('email_id', '')
+    email = request.form.get('email', '')
     
-    if not society_name or not email_id:
+    if not society_name or not email:
         return jsonify(status='error', message='Both fields are required.'), 400
 
     conn = get_db() # Use your existing DB connection function
@@ -505,14 +505,14 @@ def request_password_reset():
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
             # 1. Verify that the combined credentials exist (CRITICAL)
             cur.execute(
-                'SELECT email_id FROM admins WHERE society_name = %s AND email_id = %s',
-                (society_name, email_id)
+                'SELECT email FROM admins WHERE society_name = %s AND email = %s',
+                (society_name, email)
             )
             admin = cur.fetchone()
 
             # 2. Prevent information leakage if no match is found
             if admin is None:
-                print(f"Reset attempt failed for: {society_name} / {email_id} (No match)")
+                print(f"Reset attempt failed for: {society_name} / {email} (No match)")
                 # Respond with success to avoid telling an attacker which field was wrong
                 return jsonify(status='success', message='If your details are correct, a reset code has been sent to your email.'), 200
 
@@ -529,7 +529,7 @@ def request_password_reset():
         conn.commit() # Commit transaction outside the cursor block
 
         # 5. Send the email
-        send_reset_email(email_id, society_name, otp_code)
+        send_reset_email(email, society_name, otp_code)
 
         return jsonify(status='success', message='A 6-digit reset code has been sent to your registered email.'), 200
 
