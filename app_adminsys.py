@@ -416,65 +416,7 @@ def admin_password_prompt():
             return redirect(url_for('admin_password_prompt'))
 
     return render_template("admin_password_prompt.html")
-
-# --- PASSWORD RESET HELPERS & ROUTES ---
-# (Ensure your send_reset_email function is defined above these routes)
-
-@app.route('/request_password_reset', methods=['POST'])
-def request_password_reset():
-    """
-    Step 1: Checks credentials, generates OTP, saves token, sends email.
-    Called via AJAX from the frontend.
-    """
-    society_name = request.form.get('society_name', '').upper()
-    email_id = request.form.get('email_id', '')
-    
-    if not society_name or not email_id:
-        return jsonify(status='error', message='Both fields are required.'), 400
-
-    conn = get_db() # Use your existing DB connection function
-    
-    try:
-        # ** FIX: Create a cursor before executing **
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            # 1. Verify that the combined credentials exist (CRITICAL)
-            cur.execute(
-                'SELECT email_id FROM admin_table WHERE society_name = %s AND email_id = %s',
-                (society_name, email_id)
-            )
-            admin = cur.fetchone()
-
-            # 2. Prevent information leakage if no match is found
-            if admin is None:
-                print(f"Reset attempt failed for: {society_name} / {email_id} (No match)")
-                # Respond with success to avoid telling an attacker which field was wrong
-                return jsonify(status='success', message='If your details are correct, a reset code has been sent to your email.'), 200
-
-            # 3. Generate Token and Expiry Time
-            otp_code = str(random.randint(100000, 999999))
-            expiry_time = datetime.now() + timedelta(minutes=5) 
-
-            # 4. Store the OTP and Expiry in the database
-            cur.execute(
-                'UPDATE admin_table SET reset_token = %s, reset_token_expiry = %s WHERE society_name = %s',
-                (otp_code, expiry_time, society_name)
-            )
-        
-        conn.commit() # Commit transaction outside the cursor block
-
-        # 5. Send the email
-        send_reset_email(email_id, society_name, otp_code)
-
-        return jsonify(status='success', message='A 6-digit reset code has been sent to your registered email.'), 200
-
-    except Exception as e:
-        if conn: conn.rollback()
-        print(f"Database error during password request: {e}")
-        return jsonify(status='error', message='An internal server error occurred.'), 500
-    finally:
-        if conn: conn.close()
-
-
+ 
 @app.route('/verify_otp_and_reset', methods=['POST'])
 def verify_otp_and_reset():
     """
