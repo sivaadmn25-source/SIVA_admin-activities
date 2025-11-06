@@ -314,10 +314,8 @@ def send_reset_email(email_to, society_name, otp_code):
     body = f"""
     Dear Admin,
 
-    You requested a password reset for the society: {society_name}.
-
-    Your 6-digit one-time code is: {otp_code}
-
+    You requested a password reset for the society: {society_name}. 
+    Your 6-digit one-time code is: {otp_code}.
     This code is valid for 5 minutes. If you did not request this, please ignore this email.
 
     Thank you.
