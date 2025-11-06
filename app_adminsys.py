@@ -417,42 +417,50 @@ def admin_password_prompt():
 
     return render_template("admin_password_prompt.html")
 
+# --- PASSWORD RESET HELPERS & ROUTES ---
+# (Ensure your send_reset_email function is defined above these routes)
+
 @app.route('/request_password_reset', methods=['POST'])
 def request_password_reset():
-    # 1. Get user input
+    """
+    Step 1: Checks credentials, generates OTP, saves token, sends email.
+    Called via AJAX from the frontend.
+    """
     society_name = request.form.get('society_name', '').upper()
     email_id = request.form.get('email_id', '')
     
     if not society_name or not email_id:
-        return jsonify(status='error', message='Both Society Name and Email are required.'), 400
+        return jsonify(status='error', message='Both fields are required.'), 400
 
-    conn = get_db() # Assuming you have a function to get DB connection
+    conn = get_db() # Use your existing DB connection function
     
     try:
-        # 2. Verify that the combined credentials exist (CRITICAL SECURITY STEP)
-        admin = conn.execute(
-            'SELECT email_id FROM admin_table WHERE society_name = ? AND email_id = ?',
-            (society_name, email_id)
-        ).fetchone()
+        # ** FIX: Create a cursor before executing **
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            # 1. Verify that the combined credentials exist (CRITICAL)
+            cur.execute(
+                'SELECT email_id FROM admin_table WHERE society_name = %s AND email_id = %s',
+                (society_name, email_id)
+            )
+            admin = cur.fetchone()
 
-        if admin is None:
-            # Send a generic success message even on failure to avoid leaking info
-            # but log the attempt or handle it silently.
-            print(f"Reset attempt failed for: {society_name} / {email_id} (No match)")
-            return jsonify(status='success', message='If your details are correct, a reset code has been sent to your email.'), 200
+            # 2. Prevent information leakage if no match is found
+            if admin is None:
+                print(f"Reset attempt failed for: {society_name} / {email_id} (No match)")
+                # Respond with success to avoid telling an attacker which field was wrong
+                return jsonify(status='success', message='If your details are correct, a reset code has been sent to your email.'), 200
 
-        # 3. Generate Token and Expiry Time
-        # Generate 6-digit numeric OTP (000000 to 999999)
-        otp_code = str(random.randint(100000, 999999))
-        # Token valid for 5 minutes
-        expiry_time = datetime.now() + timedelta(minutes=5)
+            # 3. Generate Token and Expiry Time
+            otp_code = str(random.randint(100000, 999999))
+            expiry_time = datetime.now() + timedelta(minutes=5) 
 
-        # 4. Store the OTP and Expiry in the database
-        conn.execute(
-            'UPDATE admin_table SET reset_token = ?, token_expiry = ? WHERE society_name = ?',
-            (otp_code, expiry_time, society_name)
-        )
-        conn.commit()
+            # 4. Store the OTP and Expiry in the database
+            cur.execute(
+                'UPDATE admin_table SET reset_token = %s, reset_token_expiry = %s WHERE society_name = %s',
+                (otp_code, expiry_time, society_name)
+            )
+        
+        conn.commit() # Commit transaction outside the cursor block
 
         # 5. Send the email
         send_reset_email(email_id, society_name, otp_code)
@@ -460,15 +468,19 @@ def request_password_reset():
         return jsonify(status='success', message='A 6-digit reset code has been sent to your registered email.'), 200
 
     except Exception as e:
-        conn.rollback()
+        if conn: conn.rollback()
         print(f"Database error during password request: {e}")
         return jsonify(status='error', message='An internal server error occurred.'), 500
     finally:
-        conn.close()
+        if conn: conn.close()
+
 
 @app.route('/verify_otp_and_reset', methods=['POST'])
 def verify_otp_and_reset():
-    # 1. Get hidden fields and new passwords
+    """
+    Step 2: Triple-checks the OTP, email, and society, then updates the password.
+    Called via standard form submission from the frontend.
+    """
     society_name = request.form.get('society_name', '').upper()
     email_id = request.form.get('email_id', '')
     otp_code = request.form.get('otp_code', '')
@@ -476,165 +488,182 @@ def verify_otp_and_reset():
     confirm_password = request.form.get('confirm_password', '')
 
     if new_password != confirm_password:
-        flash('New password and confirmation do not match.', 'error')
+        flash('New password and confirmation do not match!', 'error')
         return redirect(url_for('admin_password_prompt'))
     
     conn = get_db()
     
     try:
-        # 2. Triple Check: Society, Email, Token, AND Expiry (MAXIMUM SECURITY STEP)
-        admin = conn.execute(
-            '''
-            SELECT id FROM admin_table 
-            WHERE society_name = ? AND email_id = ? AND reset_token = ? AND token_expiry > ?
-            ''',
-            (society_name, email_id, otp_code, datetime.now())
-        ).fetchone()
+        # ** FIX: Create a cursor before executing **
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            # 1. Triple Check: Society, Email, Token, AND Expiry (MAXIMUM SECURITY)
+            cur.execute(
+                '''
+                SELECT id FROM admin_table 
+                WHERE society_name = %s 
+                  AND email_id = %s 
+                  AND reset_token = %s 
+                  AND reset_token_expiry > %s
+                ''',
+                (society_name, email_id, otp_code, datetime.now()) 
+            )
+            admin = cur.fetchone()
 
-        if admin is None:
-            flash('Invalid or expired reset code. Please try the "Forgot Password" process again.', 'error')
-            return redirect(url_for('admin_password_prompt'))
+            if admin is None:
+                flash('Invalid or expired reset code. Please try the "Forgot Password" process again.', 'error')
+                return redirect(url_for('admin_password_prompt'))
 
-        # 3. Hash the new password and update the database
-        hashed_password = generate_password_hash(new_password)
+            # 2. Hash the new password and update the database
+            hashed_password = generate_password_hash(new_password)
+            
+            # 3. Update the password and CLEAR the token and expiry (security against token reuse)
+            cur.execute(
+                '''
+                UPDATE admin_table SET 
+                    admin_password = %s, 
+                    reset_token = NULL, 
+                    reset_token_expiry = NULL 
+                WHERE society_name = %s
+                ''',
+                (hashed_password, society_name)
+            )
         
-        # 4. Update the password and **CLEAR the token** (for security against reuse)
-        conn.execute(
-            '''
-            UPDATE admin_table SET 
-                admin_password = ?, 
-                reset_token = NULL, 
-                token_expiry = NULL 
-            WHERE society_name = ?
-            ''',
-            (hashed_password, society_name)
-        )
-        conn.commit()
+        conn.commit() # Commit transaction outside the cursor block
 
         flash('Password successfully reset! You can now log in with your new password.', 'success')
         return redirect(url_for('admin_password_prompt'))
 
     except Exception as e:
-        conn.rollback()
+        if conn: conn.rollback()
         print(f"Database error during password reset: {e}")
         flash('An internal server error occurred during password reset.', 'error')
         return redirect(url_for('admin_password_prompt'))
     finally:
-        conn.close()
+        if conn: conn.close()
 
-@app.route('/public_reset_password', methods=['POST'])
-def public_reset_password():
-    # Fields from the HTML form
-    society_name = request.form.get('society_name')
-    email_id = request.form.get('email_id')
-    new_password = request.form.get('new_password')
-    confirm_password = request.form.get('confirm_password')
+# --- PASSWORD RESET HELPERS & ROUTES ---
+# (Ensure your send_reset_email function is defined above these routes)
+
+@app.route('/request_password_reset', methods=['POST'])
+def request_password_reset():
+    """
+    Step 1: Checks credentials, generates OTP, saves token, sends email.
+    Called via AJAX from the frontend.
+    """
+    society_name = request.form.get('society_name', '').upper()
+    email_id = request.form.get('email_id', '')
+    
+    if not society_name or not email_id:
+        return jsonify(status='error', message='Both fields are required.'), 400
+
+    conn = get_db() # Use your existing DB connection function
+    
+    try:
+        # ** FIX: Create a cursor before executing **
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            # 1. Verify that the combined credentials exist (CRITICAL)
+            cur.execute(
+                'SELECT email_id FROM admin_table WHERE society_name = %s AND email_id = %s',
+                (society_name, email_id)
+            )
+            admin = cur.fetchone()
+
+            # 2. Prevent information leakage if no match is found
+            if admin is None:
+                print(f"Reset attempt failed for: {society_name} / {email_id} (No match)")
+                # Respond with success to avoid telling an attacker which field was wrong
+                return jsonify(status='success', message='If your details are correct, a reset code has been sent to your email.'), 200
+
+            # 3. Generate Token and Expiry Time
+            otp_code = str(random.randint(100000, 999999))
+            expiry_time = datetime.now() + timedelta(minutes=5) 
+
+            # 4. Store the OTP and Expiry in the database
+            cur.execute(
+                'UPDATE admin_table SET reset_token = %s, reset_token_expiry = %s WHERE society_name = %s',
+                (otp_code, expiry_time, society_name)
+            )
+        
+        conn.commit() # Commit transaction outside the cursor block
+
+        # 5. Send the email
+        send_reset_email(email_id, society_name, otp_code)
+
+        return jsonify(status='success', message='A 6-digit reset code has been sent to your registered email.'), 200
+
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"Database error during password request: {e}")
+        return jsonify(status='error', message='An internal server error occurred.'), 500
+    finally:
+        if conn: conn.close()
+
+
+@app.route('/verify_otp_and_reset', methods=['POST'])
+def verify_otp_and_reset():
+    """
+    Step 2: Triple-checks the OTP, email, and society, then updates the password.
+    Called via standard form submission from the frontend.
+    """
+    society_name = request.form.get('society_name', '').upper()
+    email_id = request.form.get('email_id', '')
+    otp_code = request.form.get('otp_code', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
 
     if new_password != confirm_password:
-        flash("New passwords do not match.", 'error')
+        flash('New password and confirmation do not match!', 'error')
         return redirect(url_for('admin_password_prompt'))
     
-    if not society_name or not email_id or not new_password:
-        flash("All fields are required.", 'error')
-        return redirect(url_for('admin_password_prompt'))
-        
-    conn = None
+    conn = get_db()
+    
     try:
-        conn = get_db()
-        cur = conn.cursor()
-        
-        # ⭐ HASHING FIX 3: Reduced iterations for 'lighter' hashing (50k for speed)
-        # This only affects NEW passwords being set from this point forward.
-        hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256', salt_length=16, iterations=50000)
-        
-        cur.execute(
-            "UPDATE admins SET password_hash = %s WHERE society_name = %s AND email = %s", 
-            (hashed_password, society_name, email_id)
-        )
-        
-        if cur.rowcount == 0:
-            flash("No matching details to update.", 'error')
-        else:
-            conn.commit()
-            flash("Updated successfully.", 'success')
-            
-        return redirect(url_for('admin_password_prompt'))
-        
-    except (Exception, psycopg2.DatabaseError) as e:
-        app.logger.error(f"Error during public password reset: {e}")
-        flash("An unexpected error occurred during the password reset.", 'error')
-    finally:
-        if conn:
-            conn.close()
-            
-    return redirect(url_for('admin_password_prompt'))
- 
-@app.route('/super-admin-password', methods=['GET', 'POST'])
-def super_admin_password_prompt():
-    if current_user.is_authenticated:
-        return redirect(url_for('admin_panel'))
-
-    if request.method == 'POST':
-        society_name_to_manage = request.form.get("society_name", "").strip().upper() 
-        password = request.form.get("super_admin_password", "")
-        
-        if not society_name_to_manage or not password:
-            flash("Society Name and Password are required.", "danger")
-            return redirect(url_for('super_admin_password_prompt'))
-            
-        conn = get_db()
-        if not conn:
-            flash("Database connection error.", "danger")
-            return render_template("confirm_super_admin_password.html")
-
-        super_admin_row = None
-        target_society_housing_type = None 
-        try:
-            with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-                cur.execute(
-                    "SELECT id, role, society_name, password_hash, housing_type FROM admins WHERE society_name = %s AND role = %s",
-                    ('_system_', 'super_admin')
-                )
-                super_admin_row = cur.fetchone()
-                
-                cur.execute(
-                    "SELECT housing_type FROM admins WHERE society_name = %s AND role = %s",
-                    (society_name_to_manage, 'admin') 
-                )
-                target_society_row = cur.fetchone()
-                if target_society_row:
-                    target_society_housing_type = target_society_row.get('housing_type')
-
-        except (Exception, psycopg2.DatabaseError) as error:
-            app.logger.error(f"Database error during super admin login: {error}")
-            flash("A server error occurred.", "danger")
-        finally:
-            if conn:
-                conn.close()
-        
-        # ⭐ HASHING CHANGE 4: Check password hash (uses slower PBKDF2/Argon2 check)
-        stored_hash = super_admin_row['password_hash'] if super_admin_row else None
-        
-        if super_admin_row and stored_hash and check_password_hash(stored_hash, password):
-            user = AdminUser(
-                user_id=super_admin_row['id'],
-                role=super_admin_row['role'],
-                society_name=super_admin_row['society_name'], 
-                is_super_admin=True, 
-                housing_type=super_admin_row.get('housing_type')
+        # ** FIX: Create a cursor before executing **
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            # 1. Triple Check: Society, Email, Token, AND Expiry (MAXIMUM SECURITY)
+            cur.execute(
+                '''
+                SELECT id FROM admin_table 
+                WHERE society_name = %s 
+                  AND email_id = %s 
+                  AND reset_token = %s 
+                  AND reset_token_expiry > %s
+                ''',
+                (society_name, email_id, otp_code, datetime.now()) 
             )
-            login_user(user)
+            admin = cur.fetchone()
+
+            if admin is None:
+                flash('Invalid or expired reset code. Please try the "Forgot Password" process again.', 'error')
+                return redirect(url_for('admin_password_prompt'))
+
+            # 2. Hash the new password and update the database
+            hashed_password = generate_password_hash(new_password)
             
-            session['society_name'] = society_name_to_manage
-            session['housing_type'] = target_society_housing_type 
-            session.modified = True
-            flash(f"Super Admin logged in. Managing society: {society_name_to_manage}", "success")
-            return redirect(url_for('admin_panel'))
-        else:
-            flash("Incorrect Super Admin Password or missing Society Name.", "danger")
+            # 3. Update the password and CLEAR the token and expiry (security against token reuse)
+            cur.execute(
+                '''
+                UPDATE admin_table SET 
+                    admin_password = %s, 
+                    reset_token = NULL, 
+                    reset_token_expiry = NULL 
+                WHERE society_name = %s
+                ''',
+                (hashed_password, society_name)
+            )
+        
+        conn.commit() # Commit transaction outside the cursor block
 
-    return render_template("confirm_super_admin_password.html")
+        flash('Password successfully reset! You can now log in with your new password.', 'success')
+        return redirect(url_for('admin_password_prompt'))
 
+    except Exception as e:
+        if conn: conn.rollback()
+        print(f"Database error during password reset: {e}")
+        flash('An internal server error occurred during password reset.', 'error')
+        return redirect(url_for('admin_password_prompt'))
+    finally:
+        if conn: conn.close()
 
 @app.route('/admin-panel')
 @login_required
