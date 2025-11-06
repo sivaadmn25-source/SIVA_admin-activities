@@ -424,7 +424,7 @@ def verify_otp_and_reset():
     Called via standard form submission from the frontend.
     """
     society_name = request.form.get('society_name', '').upper()
-    email = request.form.get('email', '')
+    email = request.form.get('email_id', '')
     otp_code = request.form.get('otp_code', '')
     new_password = request.form.get('new_password', '')
     confirm_password = request.form.get('confirm_password', '')
@@ -482,10 +482,7 @@ def verify_otp_and_reset():
         return redirect(url_for('admin_password_prompt'))
     finally:
         if conn: conn.close()
-
-# --- PASSWORD RESET HELPERS & ROUTES ---
-# (Ensure your send_reset_email function is defined above these routes)
-
+ 
 @app.route('/request_password_reset', methods=['POST'])
 def request_password_reset():
     """
@@ -493,7 +490,7 @@ def request_password_reset():
     Called via AJAX from the frontend.
     """
     society_name = request.form.get('society_name', '').upper()
-    email = request.form.get('email', '')
+    email = request.form.get('email_id', '')
     
     if not society_name or not email:
         return jsonify(status='error', message='Both fields are required.'), 400
