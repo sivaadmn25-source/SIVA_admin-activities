@@ -441,7 +441,7 @@ def verify_otp_and_reset():
             # 1. Triple Check: Society, Email, Token, AND Expiry (MAXIMUM SECURITY)
             cur.execute(
                 '''
-                SELECT id FROM admin_table 
+                SELECT id FROM admins 
                 WHERE society_name = %s 
                   AND email_id = %s 
                   AND reset_token = %s 
@@ -461,7 +461,7 @@ def verify_otp_and_reset():
             # 3. Update the password and CLEAR the token and expiry (security against token reuse)
             cur.execute(
                 '''
-                UPDATE admin_table SET 
+                UPDATE admins SET 
                     admin_password = %s, 
                     reset_token = NULL, 
                     reset_token_expiry = NULL 
@@ -505,7 +505,7 @@ def request_password_reset():
         with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
             # 1. Verify that the combined credentials exist (CRITICAL)
             cur.execute(
-                'SELECT email_id FROM admin_table WHERE society_name = %s AND email_id = %s',
+                'SELECT email_id FROM admins WHERE society_name = %s AND email_id = %s',
                 (society_name, email_id)
             )
             admin = cur.fetchone()
@@ -522,7 +522,7 @@ def request_password_reset():
 
             # 4. Store the OTP and Expiry in the database
             cur.execute(
-                'UPDATE admin_table SET reset_token = %s, reset_token_expiry = %s WHERE society_name = %s',
+                'UPDATE admins SET reset_token = %s, reset_token_expiry = %s WHERE society_name = %s',
                 (otp_code, expiry_time, society_name)
             )
         
