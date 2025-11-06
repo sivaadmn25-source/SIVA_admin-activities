@@ -1,7 +1,7 @@
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_from_directory, make_response
 import os
-import io
+import io, random
 import json
 import psycopg2
 import psycopg2.extras
@@ -301,6 +301,44 @@ def check_sha256_code(raw_code, stored_hash):
     # Use secrets.compare_digest for constant-time comparison (security best practice)
     return secrets.compare_digest(current_hex, stored_hex)
 
+# --- Place this function near your other helper functions ---
+def send_reset_email(email_to, society_name, otp_code):
+    """
+    Sends the password reset email with the OTP.
+    
+    NOTE: Replace this function body with your actual email sending logic.
+    """
+    subject = f"[{society_name}] Password Reset Code"
+    
+    # A simple plaintext body (use HTML/jinja templates for better formatting)
+    body = f"""
+    Dear Admin,
+
+    You requested a password reset for the society: {society_name}.
+
+    Your 6-digit one-time code is: {otp_code}
+
+    This code is valid for 5 minutes. If you did not request this, please ignore this email.
+
+    Thank you.
+    """
+    
+    print(f"--- FAKE EMAIL SENT ---")
+    print(f"TO: {email_to}")
+    print(f"SUBJECT: {subject}")
+    print(f"BODY:\n{body}")
+    print(f"--- END FAKE EMAIL ---")
+    
+    # Example of actual mailer usage (commented out)
+    # try:
+    #     msg = Message(subject, recipients=[email_to], body=body)
+    #     mail.send(msg)
+    #     return True
+    # except Exception as e:
+    #     print(f"Mail failed: {e}")
+    #     return False
+    return True # Always return true for this placeholder
+
 # --- ROUTES & VIEWS ---
 
 @app.route('/')
@@ -378,6 +416,111 @@ def admin_password_prompt():
             return redirect(url_for('admin_password_prompt'))
 
     return render_template("admin_password_prompt.html")
+
+@app.route('/request_password_reset', methods=['POST'])
+def request_password_reset():
+    # 1. Get user input
+    society_name = request.form.get('society_name', '').upper()
+    email_id = request.form.get('email_id', '')
+    
+    if not society_name or not email_id:
+        return jsonify(status='error', message='Both Society Name and Email are required.'), 400
+
+    conn = get_db_connection() # Assuming you have a function to get DB connection
+    
+    try:
+        # 2. Verify that the combined credentials exist (CRITICAL SECURITY STEP)
+        admin = conn.execute(
+            'SELECT email_id FROM admin_table WHERE society_name = ? AND email_id = ?',
+            (society_name, email_id)
+        ).fetchone()
+
+        if admin is None:
+            # Send a generic success message even on failure to avoid leaking info
+            # but log the attempt or handle it silently.
+            print(f"Reset attempt failed for: {society_name} / {email_id} (No match)")
+            return jsonify(status='success', message='If your details are correct, a reset code has been sent to your email.'), 200
+
+        # 3. Generate Token and Expiry Time
+        # Generate 6-digit numeric OTP (000000 to 999999)
+        otp_code = str(random.randint(100000, 999999))
+        # Token valid for 5 minutes
+        expiry_time = datetime.now() + timedelta(minutes=5)
+
+        # 4. Store the OTP and Expiry in the database
+        conn.execute(
+            'UPDATE admin_table SET reset_token = ?, token_expiry = ? WHERE society_name = ?',
+            (otp_code, expiry_time, society_name)
+        )
+        conn.commit()
+
+        # 5. Send the email
+        send_reset_email(email_id, society_name, otp_code)
+
+        return jsonify(status='success', message='A 6-digit reset code has been sent to your registered email.'), 200
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Database error during password request: {e}")
+        return jsonify(status='error', message='An internal server error occurred.'), 500
+    finally:
+        conn.close()
+
+@app.route('/verify_otp_and_reset', methods=['POST'])
+def verify_otp_and_reset():
+    # 1. Get hidden fields and new passwords
+    society_name = request.form.get('society_name', '').upper()
+    email_id = request.form.get('email_id', '')
+    otp_code = request.form.get('otp_code', '')
+    new_password = request.form.get('new_password', '')
+    confirm_password = request.form.get('confirm_password', '')
+
+    if new_password != confirm_password:
+        flash('New password and confirmation do not match.', 'error')
+        return redirect(url_for('admin_password_prompt'))
+    
+    conn = get_db_connection()
+    
+    try:
+        # 2. Triple Check: Society, Email, Token, AND Expiry (MAXIMUM SECURITY STEP)
+        admin = conn.execute(
+            '''
+            SELECT id FROM admin_table 
+            WHERE society_name = ? AND email_id = ? AND reset_token = ? AND token_expiry > ?
+            ''',
+            (society_name, email_id, otp_code, datetime.now())
+        ).fetchone()
+
+        if admin is None:
+            flash('Invalid or expired reset code. Please try the "Forgot Password" process again.', 'error')
+            return redirect(url_for('admin_password_prompt'))
+
+        # 3. Hash the new password and update the database
+        hashed_password = generate_password_hash(new_password)
+        
+        # 4. Update the password and **CLEAR the token** (for security against reuse)
+        conn.execute(
+            '''
+            UPDATE admin_table SET 
+                admin_password = ?, 
+                reset_token = NULL, 
+                token_expiry = NULL 
+            WHERE society_name = ?
+            ''',
+            (hashed_password, society_name)
+        )
+        conn.commit()
+
+        flash('Password successfully reset! You can now log in with your new password.', 'success')
+        return redirect(url_for('admin_password_prompt'))
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Database error during password reset: {e}")
+        flash('An internal server error occurred during password reset.', 'error')
+        return redirect(url_for('admin_password_prompt'))
+    finally:
+        conn.close()
 
 @app.route('/public_reset_password', methods=['POST'])
 def public_reset_password():
