@@ -426,7 +426,7 @@ def request_password_reset():
     if not society_name or not email_id:
         return jsonify(status='error', message='Both Society Name and Email are required.'), 400
 
-    conn = get_db_connection() # Assuming you have a function to get DB connection
+    conn = get_db() # Assuming you have a function to get DB connection
     
     try:
         # 2. Verify that the combined credentials exist (CRITICAL SECURITY STEP)
@@ -479,7 +479,7 @@ def verify_otp_and_reset():
         flash('New password and confirmation do not match.', 'error')
         return redirect(url_for('admin_password_prompt'))
     
-    conn = get_db_connection()
+    conn = get_db()
     
     try:
         # 2. Triple Check: Society, Email, Token, AND Expiry (MAXIMUM SECURITY STEP)
